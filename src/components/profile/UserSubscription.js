@@ -165,7 +165,7 @@ const UserSubscription = () => {
       {subscription ? (
         <div>
           <div className="bg-green-50 p-4 rounded-lg mb-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center">
               <div>
                 <span className="inline-flex px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-600">
                   {plan?.name || 'Plan'}
@@ -173,24 +173,35 @@ const UserSubscription = () => {
                 <h3 className="text-lg font-bold mt-2">{plan?.description || 'Abonnement actif'}</h3>
               </div>
               
-              <div className="text-right">
-                <div className="text-xl font-bold">
-                  {subscription.payment_status === 'completed' ? (
-                    <span className="flex items-center text-green-600">
-                      <CheckCircle className="h-5 w-5 mr-1" />
-                      Actif
-                    </span>
-                  ) : (
-                    <span className="flex items-center text-orange-600">
-                      <AlertCircle className="h-5 w-5 mr-1" />
-                      En attente
-                    </span>
-                  )}
+              {/* Prix mis en évidence - rendu notamment sur mobile */}
+              <div className="text-center mt-3 md:mt-0 md:text-right">
+                <div className="text-2xl font-bold text-green-700">
+                  {plan?.price_monthly ? `${plan.price_monthly.toFixed(2)} €` : '0,00 €'}
                 </div>
                 <p className="text-sm text-gray-600">
-                  Expire le {formatDate(subscription.end_date)}
+                  par mois
                 </p>
               </div>
+            </div>
+            
+            {/* Statut de l'abonnement */}
+            <div className="flex justify-between items-center mt-4">
+              <div className="text-base text-gray-700">
+                {subscription.payment_status === 'completed' ? (
+                  <span className="flex items-center text-green-600">
+                    <CheckCircle className="h-5 w-5 mr-1" />
+                    Actif
+                  </span>
+                ) : (
+                  <span className="flex items-center text-orange-600">
+                    <AlertCircle className="h-5 w-5 mr-1" />
+                    En attente
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-600">
+                Expire le {formatDate(subscription.end_date)}
+              </p>
             </div>
           </div>
           
@@ -257,7 +268,7 @@ const UserSubscription = () => {
             </div>
           </div>
           
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
             <button
               onClick={handleUpgrade}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
@@ -283,17 +294,17 @@ const UserSubscription = () => {
                     <p className="text-gray-700 mb-6">
                       Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l'accès à toutes les fonctionnalités premium à la fin de votre période de facturation actuelle.
                     </p>
-                    <div className="flex space-x-3">
+                    <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                       <button
                         onClick={() => setShowCancelModal(false)}
-                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                        className="sm:flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                         disabled={cancelling}
                       >
                         Retour
                       </button>
                       <button
                         onClick={handleCancelSubscription}
-                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-70"
+                        className="sm:flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-70"
                         disabled={cancelling}
                       >
                         {cancelling ? (

@@ -9,7 +9,9 @@ import {
   AlertTriangle,
   Search,
   Camera,
-  Eye
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSubscriptionHistory } from '../services/subscriptionService';
@@ -23,6 +25,7 @@ const SubscriptionHistory = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedItems, setExpandedItems] = useState({});
 
   useEffect(() => {
     const fetchSubscriptionHistory = async () => {
@@ -35,6 +38,13 @@ const SubscriptionHistory = () => {
         
         const historyData = await getSubscriptionHistory(userDetails.id);
         setHistory(historyData);
+        
+        // Initialiser l'état d'expansion avec le plus récent ouvert par défaut
+        if (historyData.length > 0) {
+          const expandMap = {};
+          expandMap[historyData[0].id] = true;
+          setExpandedItems(expandMap);
+        }
       } catch (err) {
         console.error("Erreur lors de la récupération de l'historique:", err.message);
         setError("Impossible de charger l'historique des abonnements. Veuillez réessayer plus tard.");
@@ -48,6 +58,14 @@ const SubscriptionHistory = () => {
     }
   }, [currentUser, userDetails]);
 
+  // Fonction pour basculer l'état d'expansion d'un élément
+  const toggleExpand = (id) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
   // Fonction pour afficher le statut de l'abonnement
   const renderStatus = (subscription) => {
     const now = new Date();
@@ -55,21 +73,21 @@ const SubscriptionHistory = () => {
     
     if (subscription.is_active && now <= endDate) {
       return (
-        <span className="flex items-center text-green-600">
+        <span className="flex items-center text-green-600 status-badge status-active">
           <CheckCircle className="h-4 w-4 mr-1" />
           Actif
         </span>
       );
     } else if (subscription.is_active && now > endDate) {
       return (
-        <span className="flex items-center text-orange-600">
+        <span className="flex items-center text-orange-600 status-badge">
           <AlertTriangle className="h-4 w-4 mr-1" />
           Expiré
         </span>
       );
     } else {
       return (
-        <span className="flex items-center text-gray-600">
+        <span className="flex items-center text-gray-600 status-badge">
           <XCircle className="h-4 w-4 mr-1" />
           Inactif
         </span>
@@ -82,25 +100,25 @@ const SubscriptionHistory = () => {
     switch (status) {
       case 'completed':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-badge">
             Payé
           </span>
         );
       case 'pending':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 status-badge">
             En attente
           </span>
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 status-badge">
             Échec
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 status-badge">
             {status}
           </span>
         );
@@ -142,7 +160,7 @@ const SubscriptionHistory = () => {
           </button>
         </div>
       ) : history.length === 0 ? (
-        <div className="bg-white rounded-lg p-8 text-center">
+        <div className="bg-white rounded-lg p-8 text-center subscription-fade-in">
           <div className="flex justify-center mb-4">
             <Clock className="h-10 w-10 text-gray-400" />
           </div>
@@ -152,30 +170,73 @@ const SubscriptionHistory = () => {
           </p>
           <button
             onClick={() => navigate('/abonnements')}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 subscription-action"
           >
             Découvrir nos abonnements
           </button>
         </div>
       ) : (
-        <div>
+        <div className="subscription-fade-in">
           <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
-            {history.map((subscription) => (
-              <li key={subscription.id} className="p-4 hover:bg-gray-50 bg-white">
-                <div className="flex items-center justify-between flex-wrap sm:flex-nowrap">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                      {subscription.subscription_plans?.name || 'Plan inconnu'}
-                      <div className="ml-3">
+            {history.map((subscription, index) => (
+              <li key={subscription.id} className={`bg-white subscription-card ${index === 0 ? 'border-l-4 border-green-500' : ''}`}>
+                {/* En-tête toujours visible avec prix mis en évidence */}
+                <div 
+                  className="p-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => toggleExpand(subscription.id)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      {/* Partie supérieure avec nom du plan et badge de statut */}
+                      <div className="flex items-center mb-1">
+                        <h4 className="text-lg font-semibold text-gray-900 mr-2">
+                          {subscription.subscription_plans?.name || 'Plan inconnu'}
+                        </h4>
                         {renderStatus(subscription)}
+                        <div className="ml-auto sm:hidden">
+                          {expandedItems[subscription.id] ? 
+                            <ChevronUp size={18} className="chevron-toggle expanded" /> : 
+                            <ChevronDown size={18} className="chevron-toggle" />
+                          }
+                        </div>
                       </div>
-                    </h4>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {subscription.subscription_plans?.description || 'Description non disponible'}
-                    </p>
+                      
+                      {/* Description courte du plan */}
+                      <p className="text-sm text-gray-500 mb-2 pr-6 truncate-2-lines">
+                        {subscription.subscription_plans?.description || 'Description non disponible'}
+                      </p>
+                      
+                      {/* Période d'abonnement, visible même sans expansion */}
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock className="mr-1.5 h-4 w-4 text-gray-400" />
+                        <span className="truncate">
+                          Du {formatDate(subscription.start_date)} au {formatDate(subscription.end_date)}
+                        </span>
+                      </div>
+                    </div>
                     
+                    {/* Prix mis en évidence à droite */}
+                    <div className="mt-3 sm:mt-0 sm:ml-6 flex flex-row sm:flex-col items-center sm:items-end justify-between">
+                      <div className="text-2xl font-bold text-green-700 subscription-price price-highlight">
+                        {formatPrice(subscription.price || (
+                          subscription.subscription_plans?.price_monthly || 0
+                        ))}
+                      </div>
+                      <div className="hidden sm:flex">
+                        {expandedItems[subscription.id] ? 
+                          <ChevronUp size={18} className="chevron-toggle expanded" /> : 
+                          <ChevronDown size={18} className="chevron-toggle" />
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Partie dépliable avec les détails */}
+                {expandedItems[subscription.id] && (
+                  <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100 subscription-details">
                     {/* Caractéristiques du plan */}
-                    <div className="mt-3 p-3 bg-gray-50 rounded-md grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="mt-3 p-3 bg-white rounded-md shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 subscription-info-grid">
                       {subscription.subscription_plans?.max_scan_auto && (
                         renderFeatureWithValue(
                           "Scans par jour", 
@@ -209,32 +270,28 @@ const SubscriptionHistory = () => {
                       )}
                     </div>
                     
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Clock className="mr-1.5 h-4 w-4 text-gray-400" />
-                        <span>Du {formatDate(subscription.start_date)} au {formatDate(subscription.end_date)}</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <CreditCard className="mr-1.5 h-4 w-4 text-gray-400" />
-                        {subscription.payment_method === 'card' ? 'Carte bancaire' : subscription.payment_method}
-                        <span className="ml-2">{renderPaymentStatus(subscription.payment_status)}</span>
+                    {/* Informations de paiement */}
+                    <div className="mt-3 p-3 bg-white rounded-md shadow-sm">
+                      <h5 className="font-medium text-gray-700 mb-2 subscription-header">Informations de paiement</h5>
+                      <div className="grid grid-cols-1 gap-2 mt-3">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <CreditCard className="mr-1.5 h-4 w-4 text-gray-400" />
+                          <span className="mr-2">
+                            {subscription.payment_method === 'card' ? 'Carte bancaire' : subscription.payment_method}
+                          </span>
+                          {renderPaymentStatus(subscription.payment_status)}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <div className={subscription.is_auto_renew ? 'text-green-600' : 'text-gray-600'}>
+                            {subscription.is_auto_renew 
+                              ? 'Renouvellement automatique activé' 
+                              : 'Sans renouvellement automatique'}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="mt-4 sm:mt-0 sm:ml-6">
-                    <div className="text-xl font-bold text-gray-900">
-                      {formatPrice(subscription.price || (
-                        subscription.subscription_plans?.price_monthly || 0
-                      ))}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {subscription.is_auto_renew 
-                        ? 'Renouvellement automatique activé' 
-                        : 'Sans renouvellement automatique'}
-                    </div>
-                  </div>
-                </div>
+                )}
               </li>
             ))}
           </ul>
@@ -248,7 +305,7 @@ const SubscriptionHistory = () => {
           <div className="mt-6 flex justify-center">
             <button
               onClick={() => navigate('/abonnements')}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition subscription-action"
             >
               Voir les abonnements disponibles
             </button>

@@ -1,5 +1,6 @@
-/* styles/header.css - Créez ce fichier et importez-le dans votre App.js */
+/* styles/header.css - Styles complets pour toute l'application */
 
+/* ===================== STYLES HEADER EXISTANTS ===================== */
 /* Styles pour assurer que le header reste visible et que le contenu ne soit pas masqué */
 body {
   padding-top: 56px; /* Hauteur du header */
@@ -50,7 +51,6 @@ html, body {
   scroll-margin-top: 56px;
 }
 
-
 .App {
   text-align: center;
 }
@@ -88,4 +88,237 @@ html, body {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ===================== STYLES POUR NAVIGATION MOBILE ===================== */
+
+/* Ombre vers le haut pour la barre de navigation inférieure */
+.shadow-top {
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Animation pour le menu déroulant */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.profile-dropdown {
+  animation: slideDown 0.2s ease-out forwards;
+}
+
+/* Styles pour les badges d'utilisateur */
+.user-badge {
+  transition: all 0.2s ease;
+}
+.user-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Padding supplémentaire pour le contenu principal sur mobile pour éviter que la barre de navigation ne cache du contenu */
+@media (max-width: 768px) {
+  .content-with-bottom-nav {
+    padding-bottom: 70px;
+  }
+  
+  /* Ajustement pour permettre au contenu de défiler correctement avec la navigation en bas */
+  .profile-content {
+    margin-bottom: 60px;
+  }
+}
+
+/* Style pour l'icône active dans la navigation par onglets */
+.tab-active {
+  position: relative;
+}
+
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  width: 50%;
+  height: 3px;
+  background-color: #10b981; /* Couleur verte */
+  border-radius: 3px 3px 0 0;
+}
+
+/* Z-index pour s'assurer que les menus apparaissent par-dessus les autres éléments */
+.mobile-nav-menu {
+  z-index: 50;
+}
+
+/* S'assurer que le menu mobile en bas ne cache pas le contenu principal */
+.has-bottom-nav {
+  padding-bottom: 80px;
+}
+
+/* ===================== STYLES POUR ABONNEMENTS ===================== */
+
+/* Animation pour l'expansion des détails d'abonnement (version améliorée) */
+@keyframes slideDownExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 1000px;
+  }
+}
+
+.subscription-details {
+  animation: slideDownExpand 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+/* Style pour mettre en évidence le prix */
+.price-highlight {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.price-highlight:hover {
+  transform: scale(1.05);
+}
+
+.price-highlight::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  bottom: -4px;
+  left: -4px;
+  background-color: rgba(16, 185, 129, 0.05);
+  border-radius: 0.5rem;
+  z-index: -1;
+}
+
+/* Styles pour les badges de statut */
+.status-badge {
+  transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Meilleure troncature pour les textes longs sur mobile */
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Style responsive pour l'affichage des détails */
+@media (max-width: 640px) {
+  .subscription-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Ajustement de la taille du prix sur mobile */
+  .subscription-price {
+    font-size: 1.5rem; /* Légèrement plus petit sur mobile */
+  }
+  
+  /* Réduire la marge pour les plans d'abonnement sur mobile */
+  .subscription-item {
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+  }
+}
+
+/* Style pour la transition du chevron */
+.chevron-toggle {
+  transition: transform 0.3s ease;
+}
+
+.chevron-toggle.expanded {
+  transform: rotate(180deg);
+}
+
+/* Carte des abonnements avec effet d'ombre au survol */
+.subscription-card {
+  transition: all 0.2s ease;
+}
+
+.subscription-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation pour afficher les plans d'abonnement */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.subscription-fade-in {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Animation pour les badges de statut actif/inactif */
+.status-active {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Styles pour la page UserSubscription */
+.subscription-header {
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  position: relative;
+}
+
+.subscription-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100px;
+  height: 2px;
+  background-color: #10b981;
+}
+
+/* Mise en évidence du prix dans les détails d'abonnement */
+.subscription-price-large {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #047857;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Animation pour les actions (boutons) */
+.subscription-action {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subscription-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
