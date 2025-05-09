@@ -1,56 +1,73 @@
 // src/components/BarcodeScanner.js
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
-
-// Ce composant sera utilisé plus tard lorsque vous intégrerez la fonctionnalité de scan
-// Vous aurez besoin d'installer une bibliothèque comme 'quagga' ou 'zxing'
-// npm install quagga
+import Quagga from 'quagga'; // Assurez-vous d'installer cette dépendance
 
 const BarcodeScanner = ({ onScanComplete }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const scannerRef = useRef(null);
   
-  // Activation de la caméra
-  const startScanner = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsScanning(true);
-        setHasPermission(true);
-        
-        // Dans une application réelle, vous intégreriez ici la bibliothèque 
-        // de reconnaissance de code-barre (Quagga, ZXing, etc.)
+  // Activation du scanner avec Quagga
+  const startScanner = () => {
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: scannerRef.current,
+        constraints: {
+          facingMode: "environment", // Caméra arrière
+        },
+      },
+      locator: {
+        patchSize: "medium",
+        halfSample: true,
+      },
+      numOfWorkers: navigator.hardwareConcurrency || 4,
+      decoder: {
+        readers: [
+          "ean_reader",
+          "ean_8_reader",
+          "code_39_reader",
+          "code_128_reader"
+        ],
+      },
+      locate: true,
+    }, function(err) {
+      if (err) {
+        console.error("Erreur d'initialisation de Quagga:", err);
+        setHasPermission(false);
+        return;
       }
-    } catch (error) {
-      console.error("Erreur d'accès à la caméra:", error);
-      setHasPermission(false);
-    }
+      
+      console.log("Quagga initialisé avec succès");
+      Quagga.start();
+      setIsScanning(true);
+      setHasPermission(true);
+    });
+
+    // Configuration de l'événement de détection
+    Quagga.onDetected((result) => {
+      if (result.codeResult) {
+        const code = result.codeResult.code;
+        console.log("Code-barres détecté:", code);
+        
+        // Arrêter le scan
+        stopScanner();
+        
+        // Appeler le callback avec le code détecté
+        if (onScanComplete) {
+          onScanComplete(code);
+        }
+      }
+    });
   };
   
-  // Arrêt de la caméra
+  // Arrêt du scanner
   const stopScanner = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
+    if (isScanning) {
+      Quagga.stop();
       setIsScanning(false);
-    }
-  };
-  
-  // Simulation d'un scan réussi (pour démonstration)
-  const simulateScan = () => {
-    // Dans l'application réelle, cette fonction serait remplacée par
-    // l'événement de détection de code-barre par Quagga ou ZXing
-    const mockBarcode = "3017620422003"; // Code EAN-13 d'exemple
-    
-    stopScanner();
-    if (onScanComplete) {
-      onScanComplete(mockBarcode);
     }
   };
   
@@ -80,16 +97,12 @@ const BarcodeScanner = ({ onScanComplete }) => {
         </div>
       ) : (
         <div className="relative">
-          <div className="relative bg-black rounded-lg overflow-hidden aspect-[3/4] max-w-md mx-auto">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            
-            {/* Cadre de scan */}
-            <div className="absolute inset-0 flex items-center justify-center">
+          <div 
+            ref={scannerRef}
+            className="relative bg-black rounded-lg overflow-hidden aspect-[3/4] max-w-md mx-auto"
+          >
+            {/* Cadre de scan - positionné par-dessus le flux vidéo géré par Quagga */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
               <div className="border-2 border-green-500 w-64 h-40 opacity-70">
                 <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-green-500"></div>
                 <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-green-500"></div>
@@ -97,25 +110,15 @@ const BarcodeScanner = ({ onScanComplete }) => {
                 <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-green-500"></div>
               </div>
             </div>
-            
-            <canvas ref={canvasRef} className="hidden" />
           </div>
           
           {/* Boutons de contrôle */}
-          <div className="mt-4 flex justify-center space-x-4">
+          <div className="mt-4 flex justify-center">
             <button
               onClick={stopScanner}
               className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
             >
-              <X size={20} />
-            </button>
-            
-            {/* Bouton de simulation pour démonstration */}
-            <button
-              onClick={simulateScan}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
-            >
-              Simuler un scan
+              <X size={20} className="mr-1" /> Annuler
             </button>
           </div>
         </div>

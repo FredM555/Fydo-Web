@@ -6,6 +6,7 @@ import { signOut } from 'firebase/auth';
 import { User, LogOut, ChevronDown, Clock, Star, MessageSquare, Heart, Award, Crown, Menu, X as XIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

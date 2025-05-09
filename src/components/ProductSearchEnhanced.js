@@ -1,7 +1,7 @@
 // src/components/ProductSearchEnhanced.js
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Star, Search, Barcode, Filter, Info, MessageSquare } from 'lucide-react';
+import { Star, Search, Barcode, Filter, Info, MessageSquare, Camera } from 'lucide-react';
 import ProductDetail from './ProductDetail';
 import AdvancedSearchFilters from './AdvancedSearchFilters';
 import { searchProductsByName, fetchProductByBarcode, filterProductByAllFields, formatIngredients, debugProductFields } from '../utils/searchUtils';
@@ -9,6 +9,10 @@ import FavoriteButton from './FavoriteButton';
 import { useAuth } from '../contexts/AuthContext';
 import { addToHistory } from '../services/productService';
 import SearchResultItem from './SearchResultItem';
+// Dans les imports
+import BarcodeScanner from './BarcodeScanner';
+//import { Camera } from 'lucide-react';
+
 
 const ProductSearchEnhanced = () => {
   // Récupérer les paramètres d'URL avec useLocation
@@ -19,8 +23,10 @@ const ProductSearchEnhanced = () => {
   // Extraire les paramètres d'URL
   const urlBarcode = queryParams.get('barcode');
   const urlSearchQuery = queryParams.get('q');
-  
-  const [activeTab, setActiveTab] = useState(urlBarcode ? 'barcode' : 'name');
+  const [showScanner, setShowScanner] = useState(false);
+
+  //const [activeTab, setActiveTab] = useState(urlBarcode ? 'barcode' : 'name');
+  const [activeTab, setActiveTab] = useState('barcode');
   const [barcode, setBarcode] = useState(urlBarcode || '');
   const [productName, setProductName] = useState(urlSearchQuery || '');
   const [product, setProduct] = useState(null);
@@ -35,7 +41,30 @@ const ProductSearchEnhanced = () => {
     withoutIngredients: []
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
-  
+// Au début de votre composant, ajoutez cette fonction et état
+const [cameraAvailable, setCameraAvailable] = useState(null);
+const [selectedImage, setSelectedImage] = useState(null);
+const [isMobileDevice, setIsMobileDevice] = useState(null);
+
+
+
+  // Ajoutez cette fonction pour gérer l'ouverture de la caméra
+// 3. Remplacez la fonction handleOpenCamera par celle-ci:
+const handleOpenCamera = () => {
+  // Au lieu d'utiliser l'API d'input file, on affiche simplement notre composant BarcodeScanner
+  setShowScanner(true);
+};
+
+// Fonction pour gérer le résultat du scan
+const handleScanComplete = (scannedCode) => {
+  setShowScanner(false);
+  setBarcode(scannedCode);
+  // Lancer automatiquement la recherche avec le code scanné
+  handleFetchProduct(scannedCode);
+};
+
+
+
   // Ajouter le contexte d'authentification
   const { currentUser, userDetails } = useAuth();
   // État pour suivre l'origine de la recherche
@@ -434,34 +463,58 @@ const ProductSearchEnhanced = () => {
             </div>
           </div>
           
-          {/* Formulaire de recherche par code-barres */}
-          {activeTab === 'barcode' && (
-            <div className="mb-6 flex items-center space-x-2">
-              <input
-                type="text"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Saisissez le code-barres (ex: 3017620422003)"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                onKeyDown={handleBarcodeKeyDown}
-              />
-              <button
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]"
-                onClick={() => handleFetchProduct()}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Recherche...
-                  </>
-                ) : 'Rechercher'}
-              </button>
-            </div>
-          )}
+{/* Formulaire de recherche par code-barres */}
+{activeTab === 'barcode' && (
+  <>
+    {showScanner ? (
+      <div className="mb-6">
+        <BarcodeScanner onScanComplete={handleScanComplete} />
+        <button
+          className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+          onClick={() => setShowScanner(false)}
+        >
+          Annuler le scan
+        </button>
+      </div>
+    ) : (
+      <div className="mb-6 flex items-center space-x-2">
+        <input
+          type="text"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          placeholder="Saisissez le code-barres (ex: 3017620422003)"
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          onKeyDown={handleBarcodeKeyDown}
+        />
+        
+        {/* Bouton pour scanner avec la caméra */}
+        <button
+          className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center"
+          onClick={handleOpenCamera}
+          aria-label="Scanner un code-barres"
+        >
+          <Camera size={20} />
+        </button>
+        
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]"
+          onClick={() => handleFetchProduct()}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Recherche...
+            </>
+          ) : 'Rechercher'}
+        </button>
+      </div>
+    )}
+  </>
+)}
           
           {/* Formulaire de recherche par nom avec filtres avancés */}
           {activeTab === 'name' && (
