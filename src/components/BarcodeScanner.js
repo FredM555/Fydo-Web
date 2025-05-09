@@ -9,7 +9,11 @@ const BarcodeScanner = ({ onScanComplete }) => {
   const scannerRef = useRef(null);
   
   // Activation du scanner avec Quagga
-  const startScanner = () => {
+const startScanner = () => {
+  if (!scannerRef.current) {
+    console.error("Élément DOM manquant pour le scanner");
+    return;
+  }
     Quagga.init({
       inputStream: {
         name: "Live",
@@ -48,6 +52,7 @@ const BarcodeScanner = ({ onScanComplete }) => {
 
     // Configuration de l'événement de détection
     Quagga.onDetected((result) => {
+      console.log("Résultat brut Quagga :", result);
       if (result.codeResult) {
         const code = result.codeResult.code;
         console.log("Code-barres détecté:", code);
@@ -72,20 +77,31 @@ const BarcodeScanner = ({ onScanComplete }) => {
   };
   
   // Nettoyage lors du démontage du composant
-  useEffect(() => {
-    return () => {
-      if (isScanning) {
-        stopScanner();
+useEffect(() => {
+  return () => {
+    if (isScanning) {
+      stopScanner();
+    }
+  };
+}, []);
+
+useEffect(() => {
+  if (isScanning) {
+    const timeout = setTimeout(() => {
+      if (scannerRef.current) {
+        startScanner();
       }
-    };
-  }, [isScanning]);
+    }, 100); // petite attente pour que le DOM soit prêt
+    return () => clearTimeout(timeout);
+  }
+}, [isScanning]);
   
   return (
     <div className="w-full">
       {!isScanning ? (
         <div className="text-center">
           <button
-            onClick={startScanner}
+            onClick={() => setIsScanning(true)}
             className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center mx-auto"
           >
             <Camera className="mr-2" size={20} />
