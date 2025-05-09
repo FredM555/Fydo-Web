@@ -227,7 +227,7 @@ const TopProducts = () => {
                         average_rating: product.average_rating || 0,
                         average_price: product.average_price || 0
                       }}
-                      onSelect={() => navigate(`/product/${product.code}`)}
+                    onSelect={() => navigate(`/recherche-filtre?barcode=${product.code}`)}
                       // Passer les filtres de recherche actuels
                       searchFilters={{
                         withIngredients: [], 
