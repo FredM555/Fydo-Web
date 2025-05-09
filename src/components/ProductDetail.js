@@ -1,20 +1,45 @@
-// src/components/ProductDetail.js - Version avec l'onglet Avis en plus gros
-import React, { useState, useEffect } from 'react';
+// src/components/ProductDetail.js - Version améliorée avec onglet Avis en premier et menu responsive
+import React, { useState, useEffect, useRef } from 'react';
 import PageNutri from './PageNutri';
 import PageEnvir from './PageEnvir';
 import PageAvis from './PageAvisEnhanced';
 import PageInfos from './PageInfos';
 import FavoriteButton from './FavoriteButton';
 import { findProductInDatabase, saveProductToDatabase } from '../services/productDatabaseService';
+import { ChevronDown } from 'lucide-react';
 
 const ProductDetail = ({ product }) => {
   // État des onglets et langues
   const [activeTab, setActiveTab] = useState('avis');
   const [ingredientsLanguage, setIngredientsLanguage] = useState('fr');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   
   // États pour la synchronisation BDD
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState(null);
+
+  // Défini les onglets avec leurs libellés
+  const tabs = [
+    { id: 'avis', label: 'AVIS', priority: 1 },
+    { id: 'nutrition', label: 'Informations nutritionnelles', priority: 2 },
+    { id: 'environnement', label: 'Impact environnemental', priority: 3 },
+    { id: 'infos', label: 'Informations produit', priority: 4 }
+  ];
+  
+  // Référence pour détecter les clics à l'extérieur du menu
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuRef]);
   
   // Effet pour synchroniser le produit avec la base de données
   useEffect(() => {
@@ -156,49 +181,72 @@ const ProductDetail = ({ product }) => {
         </div>
       </div>
       
-      {/* Navigation entre les onglets - AVIS avec une taille de police plus grande */}
+      {/* Navigation entre les onglets - Responsive avec AVIS en premier */}
       <div className="mt-6 border-b border-gray-200">
         <nav className="-mb-px flex items-center">
+          {/* Onglet AVIS avec fond vert uniquement quand il est sélectionné */}
           <button
-            onClick={() => setActiveTab('nutrition')}
-            className={`py-4 px-3 border-b-2 font-medium text-sm ${
-              activeTab === 'nutrition'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Informations nutritionnelles
-          </button>
-          <button
-            onClick={() => setActiveTab('environnement')}
-            className={`py-4 px-3 border-b-2 font-medium text-sm ${
-              activeTab === 'environnement'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Impact environnemental
-          </button>
-          <button
-            onClick={() => setActiveTab('avis')}
-            className={`py-4 px-3 border-b-2 font-medium ${
+            onClick={() => {
+              setActiveTab('avis');
+              setMenuOpen(false);
+            }}
+            className={`py-4 px-6 font-medium text-lg rounded-t-lg ${
               activeTab === 'avis'
-                ? 'border-green-500 text-green-600 text-lg' // Taille de police plus grande pour l'onglet Avis
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 text-sm'
+                ? 'bg-green-600 text-white border-b-0'
+                : 'border-b-2 border-transparent text-green-700 hover:bg-green-50 hover:text-green-800'
             }`}
           >
-            AVIS
+            Avis
           </button>
-          <button
-            onClick={() => setActiveTab('infos')}
-            className={`py-4 px-3 border-b-2 font-medium text-sm ${
-              activeTab === 'infos'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Informations produit
-          </button>
+          
+          {/* Onglets visibles sur grand écran, masqués sur petit écran */}
+          <div className="hidden md:flex">
+            {tabs.filter(tab => tab.id !== 'avis').map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-4 px-3 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-green-500 bg-green-100 text-green-700'
+                    : 'border-transparent text-gray-500 hover:text-green-700 hover:border-green-300 hover:bg-green-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Menu déroulant pour les petits écrans */}
+          <div className="md:hidden relative ml-auto" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="px-3 py-2 flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 rounded-md"
+            >
+              <span className="mr-1">{activeTab !== 'avis' ? tabs.find(t => t.id === activeTab)?.label : 'Plus'}</span>
+              <ChevronDown size={16} className={`transform transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                {tabs.filter(tab => tab.id !== 'avis').map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setMenuOpen(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2 text-sm ${
+                      activeTab === tab.id
+                        ? 'bg-green-100 text-green-700 font-medium'
+                        : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
       
