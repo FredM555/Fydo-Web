@@ -18,6 +18,7 @@ import ProductSearchEnhanced from './components/ProductSearchEnhanced';
 import AdminPanel from './components/admin/AdminPanel';
 import PendingReviews from './components/admin/PendingReviews'; // Nouveau composant
 import NotFound from './pages/NotFound';
+import FAQ from './components/FAQ';
 
 // Routes pour les abonnements
 import SubscriptionPlans from './pages/SubscriptionPlans';
@@ -61,6 +62,7 @@ function App() {
                 <HowItWorks />
                 <Download />
                 <Features />
+                <FAQ />
               </>
             } />
             
