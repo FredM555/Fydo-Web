@@ -1,3 +1,56 @@
+/* styles/header.css - Créez ce fichier et importez-le dans votre App.js */
+
+/* Styles pour assurer que le header reste visible et que le contenu ne soit pas masqué */
+body {
+  padding-top: 56px; /* Hauteur du header */
+}
+
+/* Classes spéciales pour les pages de recherche */
+.search-page-header {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: white !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Pour les écrans plus petits */
+@media (max-width: 640px) {
+  body {
+    padding-top: 48px; /* Hauteur plus petite du header sur mobile */
+  }
+  html, body {
+    scroll-padding-top: 48px;
+  }
+  
+  :target {
+    scroll-margin-top: 48px;
+  }
+}
+
+/* Ajustement pour les pages de recherche */
+.product-search-container {
+  margin-top: 2rem; /* Espace supplémentaire pour les pages de recherche */
+}
+
+/* Assurer que les onglets de recherche s'affichent correctement */
+.search-tabs {
+  position: relative; /* Pour éviter qu'ils soient masqués par le header */
+  z-index: 10;
+}
+
+/* Styles pour assurer que le header reste fixe et que le contenu défile correctement */
+html, body {
+  scroll-padding-top: 56px; /* Hauteur approximative du header pour que les liens d'ancrage tiennent compte du header fixe */
+}
+/* Si vous utilisez des liens d'ancrage dans votre site */
+:target {
+  scroll-margin-top: 56px;
+}
+
+
 .App {
   text-align: center;
 }

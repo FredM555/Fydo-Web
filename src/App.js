@@ -51,6 +51,8 @@ function App() {
       <Router>
         <div className="min-h-screen bg-green-50 flex flex-col">
           <Header />
+          {/* Augmenter le padding-top pour créer plus d'espace entre le header et le contenu */}
+          <div className="pt-10"> {/* Augmenté de 14 à 20 */}
           
           <Routes>
             {/* Routes publiques */}
@@ -123,7 +125,7 @@ function App() {
             {/* Page 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-          
+          </div>
           <Footer />
         </div>
       </Router>
