@@ -11,7 +11,7 @@ const Hero = () => {
             Des avis fiables sur vos produits préférés
           </h1>
           <p className="text-xl text-green-700 mb-6">
-            Scannez, découvrez, partagez. FYDO révolutionne la façon dont vous choisissez vos produits alimentaires et cosmétiques.
+            Scannez, découvrez, partagez. FYDO révolutionne la façon dont vous choisissez vos produits alimentaires et cosmétiques..
           </p>
           <div className="flex space-x-4">
             <a href="#telecharger" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 flex items-center">
