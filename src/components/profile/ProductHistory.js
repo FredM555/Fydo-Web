@@ -334,7 +334,11 @@ const ProductHistory = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {Object.entries(groupedHistory).map(([productKey, productData]) => {
+              {Object.entries(groupedHistory).sort(([keyA, dataA], [keyB, dataB]) => {
+        const dateA = new Date(dataA.productInfo.last_interaction_date);
+        const dateB = new Date(dataB.productInfo.last_interaction_date);
+        return dateB - dateA; // Ordre décroissant (plus récent en premier)
+      }).map(([productKey, productData]) => {
                 const { productInfo, interactions } = productData;
                 const isExpanded = expandedProducts[productKey] || false;
                 
