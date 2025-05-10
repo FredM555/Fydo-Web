@@ -97,6 +97,8 @@ const useSubscriptionPermissions = () => {
     
     let result = false;
     
+
+    
     switch (actionType) {
       case 'scan':
         result = userQuotas.scanAuto < userLimits.maxScanAuto;
