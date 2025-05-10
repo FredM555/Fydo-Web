@@ -90,8 +90,8 @@ export const getUserHistory = async (userId, limit = 20, offset = 0) => {
  * @param {object} productMetadata - Métadonnées du produit (nom, marque, image)
  * @returns {Promise<object>} - Résultat de l'opération
  */
-export const toggleFavorite = async (userId, productCode, addToFavorites, productMetadata = {}) => {
-  try {
+export const toggleFavorite = async (userId, productCode, addToFavorites, productMetadata = {}, refreshUserDetails = null) => {
+    try {
     if (!userId || !productCode) {
       throw new Error("ID utilisateur et code produit requis");
     }
@@ -113,6 +113,11 @@ export const toggleFavorite = async (userId, productCode, addToFavorites, produc
         
       if (error) throw error;
       
+      // Rafraîchir les données utilisateur si la fonction est fournie
+      if (refreshUserDetails) {
+        refreshUserDetails();
+      }
+
       return { success: true, data, isFavorite: true };
     } else {
       // Supprimer des favoris

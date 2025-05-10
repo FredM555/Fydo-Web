@@ -8,6 +8,7 @@ import FavoriteButton from './FavoriteButton';
 import { findProductInDatabase, saveProductToDatabase } from '../services/productDatabaseService';
 import { ChevronDown } from 'lucide-react';
 
+
 const ProductDetail = ({ product }) => {
   // État des onglets et langues
   const [activeTab, setActiveTab] = useState('avis');

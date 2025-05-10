@@ -12,7 +12,8 @@ import { supabase } from '../supabaseClient';
  * @returns {JSX.Element}
  */
 const FavoriteButton = ({ productCode, productData, size = 'md' }) => {
-  const { currentUser, userDetails, subscriptionPlan } = useAuth();
+  // Ajouter refreshUserDetails à la liste des éléments récupérés depuis useAuth
+  const { currentUser, userDetails, subscriptionPlan, refreshUserDetails } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -107,6 +108,11 @@ const FavoriteButton = ({ productCode, productData, size = 'md' }) => {
         if (error) throw error;
         
         setIsFavorite(true);
+      }
+      
+      // Rafraîchir les données utilisateur pour mettre à jour le nombre de favoris dans le header
+      if (refreshUserDetails) {
+        refreshUserDetails();
       }
     } catch (err) {
       console.error("Erreur lors de la modification des favoris:", err);

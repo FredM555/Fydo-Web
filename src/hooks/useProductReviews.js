@@ -14,7 +14,7 @@ import {
  * @returns {object} - Fonctions et états pour gérer les avis
  */
 const useProductReviews = (productCode) => {
-  const { currentUser, userDetails } = useAuth();
+const { currentUser, userDetails, refreshUserDetails } = useAuth();
   
   // États pour les données
   const [loading, setLoading] = useState(true);
@@ -163,6 +163,12 @@ const useProductReviews = (productCode) => {
         
         // Recharger les avis pour voir le nouvel avis (il sera en attente)
         await fetchReviews(0);
+
+              // Rafraîchir les données utilisateur dans le contexte
+        if (refreshUserDetails) {
+          refreshUserDetails();
+        }
+        
       }
       
       return result;
