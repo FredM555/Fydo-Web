@@ -1,11 +1,12 @@
-// src/components/profile/ProductHistory.js - Version modifiée
+// src/components/profile/ProductHistory.js - Version modifiée avec vérification d'autorisation
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Clock, Search, Camera, Keyboard, ExternalLink, Loader, AlertCircle, Filter, Hash, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Search, Camera, Keyboard, ExternalLink, Loader, AlertCircle, Filter, Hash, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { getUserHistory } from '../../services/productService';
 import { Link } from 'react-router-dom';
 import ProfileLayout from './ProfileLayout';
 import FavoriteButton from '../FavoriteButton';
+import useSubscriptionPermissions from '../../hooks/useSubscriptionPermissions';
 
 const ProductHistory = () => {
   const { currentUser, userDetails } = useAuth();
@@ -19,11 +20,20 @@ const ProductHistory = () => {
   const [groupedHistory, setGroupedHistory] = useState({});
   const [expandedProducts, setExpandedProducts] = useState({});
   const [filter, setFilter] = useState('all'); // 'all', 'scan', 'search', 'manual_entry', 'searchName'
+  
+  // Utiliser le hook de permissions d'abonnement
+  const { isAuthorized, userLimits } = useSubscriptionPermissions();
 
   // Récupérer l'historique de l'utilisateur
   useEffect(() => {
     const fetchHistory = async () => {
       if (!currentUser || !userDetails) return;
+      
+      // Vérifier si l'utilisateur a l'autorisation d'accéder à l'historique
+      if (!isAuthorized('history')) {
+        setLoading(false);
+        return;
+      }
       
       setLoading(true);
       
@@ -46,7 +56,7 @@ const ProductHistory = () => {
     };
     
     fetchHistory();
-  }, [currentUser, userDetails, offset]);
+  }, [currentUser, userDetails, offset, isAuthorized]);
 
   // Regrouper l'historique par produit et filtrer selon les critères
   useEffect(() => {
@@ -264,9 +274,55 @@ const ProductHistory = () => {
     </div>
   );
 
+  // Afficher un message pour les utilisateurs sans autorisation d'accès à l'historique
+  const renderSubscriptionUpgrade = () => (
+    <div className="bg-white p-8 rounded-lg shadow-md text-center">
+      <div className="flex justify-center mb-6">
+        <div className="bg-yellow-100 p-3 rounded-full">
+          <Lock size={32} className="text-yellow-600" />
+        </div>
+      </div>
+      <h3 className="text-xl font-bold text-gray-800 mb-3">Accès limité</h3>
+      <p className="text-gray-600 mb-6">
+        L'historique des produits est une fonctionnalité disponible avec nos formules d'abonnement payantes.
+        Passez à un abonnement supérieur pour garder une trace de tous les produits que vous consultez !
+      </p>
+      <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+        <h4 className="text-green-700 font-medium mb-2">Avantages de l'historique :</h4>
+        <ul className="text-gray-600 text-left space-y-2">
+          <li className="flex items-start">
+            <span className="text-green-500 mr-2">✓</span>
+            Retrouvez facilement les produits déjà consultés
+          </li>
+          <li className="flex items-start">
+            <span className="text-green-500 mr-2">✓</span>
+            Gardez une trace des recherches effectuées
+          </li>
+          <li className="flex items-start">
+            <span className="text-green-500 mr-2">✓</span>
+            Comparez les produits que vous consultez régulièrement
+          </li>
+        </ul>
+      </div>
+      <Link 
+        to="/abonnements" 
+        className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+      >
+        Découvrir nos abonnements
+      </Link>
+    </div>
+  );
+
   return (
     <ProfileLayout title="Historique des produits">
-      {loading && Object.keys(groupedHistory).length === 0 ? (
+      {loading && !isAuthorized('history') ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+      ) : !isAuthorized('history') ? (
+        // Afficher le message d'upgrade si l'utilisateur n'a pas accès à l'historique
+        renderSubscriptionUpgrade()
+      ) : loading && Object.keys(groupedHistory).length === 0 ? (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
         </div>
@@ -335,10 +391,10 @@ const ProductHistory = () => {
           ) : (
             <div className="space-y-3">
               {Object.entries(groupedHistory).sort(([keyA, dataA], [keyB, dataB]) => {
-        const dateA = new Date(dataA.productInfo.last_interaction_date);
-        const dateB = new Date(dataB.productInfo.last_interaction_date);
-        return dateB - dateA; // Ordre décroissant (plus récent en premier)
-      }).map(([productKey, productData]) => {
+                const dateA = new Date(dataA.productInfo.last_interaction_date);
+                const dateB = new Date(dataB.productInfo.last_interaction_date);
+                return dateB - dateA; // Ordre décroissant (plus récent en premier)
+              }).map(([productKey, productData]) => {
                 const { productInfo, interactions } = productData;
                 const isExpanded = expandedProducts[productKey] || false;
                 

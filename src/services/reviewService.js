@@ -573,8 +573,9 @@ export const getUserReviews = async (userId, limit = 10, offset = 0) => {
   }
 };
 
+
 /**
- * Obtient l'image du ticket de caisse si autorisé
+ * Obtient l'image du ticket de caisse (version modifiée pour prendre en compte l'utilisateur propriétaire)
  * @param {string} reviewId - ID de l'avis
  * @returns {Promise<object>} - URL du ticket ou erreur
  */
@@ -587,7 +588,7 @@ export const getReceiptImage = async (reviewId) => {
     // Vérifier si l'avis autorise le partage du ticket
     const { data: review, error: reviewError } = await supabase
       .from('product_reviews')
-      .select('receipt_id, authorize_receipt_sharing')
+      .select('receipt_id, authorize_receipt_sharing, user_id')
       .eq('id', reviewId)
       .single();
       
@@ -597,14 +598,10 @@ export const getReceiptImage = async (reviewId) => {
       throw new Error("Aucun ticket associé à cet avis");
     }
     
-    if (!review.authorize_receipt_sharing) {
-      throw new Error("L'utilisateur n'a pas autorisé le partage du ticket");
-    }
-    
     // Récupérer les informations du ticket
     const { data: receipt, error: receiptError } = await supabase
       .from('receipts')
-      .select('firebase_url')
+      .select('firebase_url, user_id')
       .eq('id', review.receipt_id)
       .single();
       
@@ -674,6 +671,36 @@ export const canUserLeaveReview = async (userId, productCode) => {
     };
   } catch (error) {
     console.error("Erreur lors de la vérification de l'autorisation:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Active ou désactive le partage public du ticket de caisse
+ * @param {string} reviewId - ID de l'avis
+ * @param {boolean} authorize - Autoriser le partage (true) ou non (false)
+ * @returns {Promise<object>} - Résultat de l'opération
+ */
+export const toggleReceiptSharing = async (reviewId, authorize) => {
+  try {
+    if (!reviewId) {
+      throw new Error("ID de l'avis requis");
+    }
+    
+    // Mettre à jour l'autorisation
+    const { error } = await supabase
+      .from('product_reviews')
+      .update({ 
+        authorize_receipt_sharing: authorize,
+        modification_date: new Date().toISOString()
+      })
+      .eq('id', reviewId);
+      
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la modification de l'autorisation:", error.message);
     return { success: false, error: error.message };
   }
 };

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserReviews } from '../../services/reviewService';
+import { getUserReviews, getReceiptImage, toggleReceiptSharing } from '../../services/reviewService';
 import ProfileLayout from '../profile/ProfileLayout';
-import { Star, MessageSquare, Loader, AlertCircle, Calendar, Check, ShoppingBag, MapPin, DollarSign, ExternalLink } from 'lucide-react';
+import { Star, MessageSquare, Loader, AlertCircle, Calendar, Check, ShoppingBag, MapPin, DollarSign, ExternalLink, Eye, EyeOff, Receipt, Image } from 'lucide-react';
 
 /**
  * Composant pour afficher tous les avis publiés par l'utilisateur connecté
@@ -19,6 +19,10 @@ const UserReviews = () => {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [totalReviews, setTotalReviews] = useState(0);
+  const [receiptImages, setReceiptImages] = useState({});
+  const [loadingReceipt, setLoadingReceipt] = useState({});
+  const [expandedReceipt, setExpandedReceipt] = useState({});
+  const [toggleSharing, setToggleSharing] = useState({});
   
   // Chargement des avis de l'utilisateur
   useEffect(() => {
@@ -52,6 +56,68 @@ const UserReviews = () => {
   const loadMoreReviews = () => {
     if (hasMore && !loading) {
       setOffset(prev => prev + 10);
+    }
+  };
+  
+  // Fonction pour charger l'image du ticket de caisse
+  const loadReceiptImage = async (reviewId) => {
+    if (loadingReceipt[reviewId] || receiptImages[reviewId]) return;
+    
+    setLoadingReceipt(prev => ({ ...prev, [reviewId]: true }));
+    
+    try {
+      const { success, receiptUrl, error: receiptError } = await getReceiptImage(reviewId);
+      
+      if (success && receiptUrl) {
+        setReceiptImages(prev => ({ ...prev, [reviewId]: receiptUrl }));
+      } else if (receiptError) {
+        console.error("Erreur lors du chargement du ticket:", receiptError);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement du ticket:", err);
+    } finally {
+      setLoadingReceipt(prev => ({ ...prev, [reviewId]: false }));
+    }
+  };
+  
+  // Fonction pour basculer l'autorisation de partage du ticket
+  const handleToggleSharing = async (reviewId, currentState) => {
+    if (toggleSharing[reviewId]) return;
+    
+    setToggleSharing(prev => ({ ...prev, [reviewId]: true }));
+    
+    try {
+      const { success, error: sharingError } = await toggleReceiptSharing(reviewId, !currentState);
+      
+      if (success) {
+        // Mettre à jour l'état local
+        setReviews(prev => prev.map(review => 
+          review.id === reviewId 
+            ? { ...review, authorize_receipt_sharing: !currentState } 
+            : review
+        ));
+        
+        // Si on désactive le partage, on supprime l'image du ticket si elle a été chargée
+        if (currentState && receiptImages[reviewId]) {
+          setReceiptImages(prev => {
+            const newState = { ...prev };
+            delete newState[reviewId];
+            return newState;
+          });
+          
+          setExpandedReceipt(prev => {
+            const newState = { ...prev };
+            delete newState[reviewId];
+            return newState;
+          });
+        }
+      } else if (sharingError) {
+        console.error("Erreur lors du changement d'autorisation:", sharingError);
+      }
+    } catch (err) {
+      console.error("Erreur lors du changement d'autorisation:", err);
+    } finally {
+      setToggleSharing(prev => ({ ...prev, [reviewId]: false }));
     }
   };
   
@@ -141,6 +207,19 @@ const UserReviews = () => {
       </Link>
     </div>
   );
+
+  // Fonction pour basculer l'affichage du ticket
+  const toggleReceiptDisplay = (reviewId) => {
+    setExpandedReceipt(prev => ({
+      ...prev,
+      [reviewId]: !prev[reviewId]
+    }));
+    
+    // Si on affiche le ticket et qu'il n'est pas encore chargé, on le charge
+    if (!expandedReceipt[reviewId] && !receiptImages[reviewId]) {
+      loadReceiptImage(reviewId);
+    }
+  };
   
   return (
     <ProfileLayout title="Mes avis publiés">
@@ -300,6 +379,83 @@ const UserReviews = () => {
                           </div>
                         )}
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Section du ticket de caisse */}
+                  {review.is_verified && (
+                    <div className="mt-4 border-t border-gray-200 pt-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center">
+                          <Receipt size={16} className="text-gray-600 mr-2" />
+                          <h4 className="text-sm font-medium text-gray-700">Ticket de caisse</h4>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          {/* Bouton pour basculer l'autorisation de partage */}
+                          <button
+                            onClick={() => handleToggleSharing(review.id, review.authorize_receipt_sharing)}
+                            disabled={toggleSharing[review.id]}
+                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium transition-colors ${
+                              review.authorize_receipt_sharing 
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
+                            title={review.authorize_receipt_sharing ? "Désactiver le partage public" : "Activer le partage public"}
+                          >
+                            {toggleSharing[review.id] ? (
+                              <Loader size={12} className="animate-spin mr-1" />
+                            ) : review.authorize_receipt_sharing ? (
+                              <EyeOff size={12} className="mr-1" />
+                            ) : (
+                              <Eye size={12} className="mr-1" />
+                            )}
+                            {review.authorize_receipt_sharing ? "Public" : "Privé"}
+                          </button>
+                          
+                          {/* Bouton pour afficher/masquer le ticket */}
+                          <button
+                            onClick={() => toggleReceiptDisplay(review.id)}
+                            className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-xs font-medium transition-colors"
+                          >
+                            <Image size={12} className="mr-1" />
+                            {expandedReceipt[review.id] ? "Masquer" : "Afficher"}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Affichage de l'image du ticket de caisse */}
+                      {expandedReceipt[review.id] && (
+                        <div className="mt-2">
+                          {loadingReceipt[review.id] ? (
+                            <div className="flex justify-center items-center h-40 bg-gray-100 rounded">
+                              <Loader size={24} className="animate-spin text-gray-400" />
+                            </div>
+                          ) : receiptImages[review.id] ? (
+                            <div className="max-h-96 overflow-auto">
+                              <img 
+                                src={receiptImages[review.id]} 
+                                alt="Ticket de caisse" 
+                                className="w-full object-contain rounded border border-gray-200"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex justify-center items-center h-40 bg-gray-100 rounded">
+                              <div className="text-center text-gray-500">
+                                <Receipt size={32} className="mx-auto mb-2 text-gray-400" />
+                                <p className="text-sm">Impossible de charger le ticket de caisse</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Information sur la confidentialité */}
+                      <p className="text-xs text-gray-500 mt-2">
+                        {review.authorize_receipt_sharing 
+                          ? "Ce ticket de caisse est visible par les autres utilisateurs." 
+                          : "Ce ticket de caisse est privé et n'est visible que par vous."}
+                      </p>
                     </div>
                   )}
                   

@@ -1,10 +1,11 @@
-// src/components/profile/FavoritesList.js
+// src/components/profile/FavoritesList.js - Version modifiée avec vérification d'autorisation
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Star, Trash, Search, ExternalLink, Loader, AlertCircle } from 'lucide-react';
+import { Star, Trash, Search, ExternalLink, Loader, AlertCircle, Lock, ArrowRight } from 'lucide-react';
 import { getUserFavorites, toggleFavorite } from '../../services/productService';
 import { Link } from 'react-router-dom';
 import ProfileLayout from './ProfileLayout';
+import useSubscriptionPermissions from '../../hooks/useSubscriptionPermissions';
 
 const FavoritesList = () => {
   const { currentUser, userDetails } = useAuth();
@@ -17,6 +18,9 @@ const FavoritesList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredFavorites, setFilteredFavorites] = useState([]);
   const [removing, setRemoving] = useState({});
+  
+  // Utiliser le hook de permissions d'abonnement
+  const { isAuthorized } = useSubscriptionPermissions();
 
   // Récupérer les favoris de l'utilisateur
   useEffect(() => {
@@ -62,7 +66,7 @@ const FavoritesList = () => {
 
   // Charger plus de favoris
   const loadMoreFavorites = () => {
-    if (hasMore && !loading) {
+    if (hasMore && !loading && isAuthorized('favorites')) {
       setOffset(offset + 20);
     }
   };
@@ -130,6 +134,43 @@ const FavoritesList = () => {
     );
   };
 
+  // Afficher le message d'abonnement pour les utilisateurs limités
+  const renderSubscriptionMessage = () => (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mt-6">
+      <div className="flex items-start">
+        <div className="flex-shrink-0 bg-yellow-100 rounded-full p-2 mr-4">
+          <Lock size={24} className="text-yellow-600" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-medium text-yellow-800 mb-2">Accès limité aux favoris</h3>
+          <p className="text-yellow-700 mb-4">
+            Avec votre abonnement actuel, vous pouvez voir uniquement vos 3 favoris les plus récents.
+            Passez à un abonnement supérieur pour sauvegarder et accéder à un nombre illimité de produits favoris !
+          </p>
+          <Link 
+            to="/abonnements" 
+            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+          >
+            Découvrir nos abonnements <ArrowRight size={16} className="ml-2" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Préparer les favoris à afficher en fonction de l'autorisation
+  const getFavoritesToDisplay = () => {
+    // Si l'utilisateur est autorisé, afficher tous les favoris filtrés
+    if (isAuthorized('favorites')) {
+      return filteredFavorites;
+    }
+    
+    // Sinon, n'afficher que les 3 premiers favoris
+    return filteredFavorites.slice(0, 3);
+  };
+
+  const favoritesToDisplay = getFavoritesToDisplay();
+
   return (
     <ProfileLayout title="Mes produits favoris">
       {loading && favorites.length === 0 ? (
@@ -154,31 +195,34 @@ const FavoritesList = () => {
         renderPlaceholder()
       ) : (
         <div>
-          {/* Recherche */}
-          <div className="mb-6">
-            <div className="relative">
-              <input
-                type="text"
-                className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Rechercher dans vos favoris..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+          {/* Recherche (uniquement visible si l'utilisateur est autorisé ou a au moins un favori) */}
+          {(isAuthorized('favorites') || favorites.length > 0) && (
+            <div className="mb-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Rechercher dans vos favoris..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              </div>
             </div>
-          </div>
+          )}
           
           {/* Compteur */}
           <div className="flex justify-between items-center mb-4">
             <p className="text-gray-600">
               {total} {total > 1 ? 'produits favoris' : 'produit favori'}
               {searchTerm && ` • ${filteredFavorites.length} résultat${filteredFavorites.length > 1 ? 's' : ''}`}
+              {!isAuthorized('favorites') && total > 3 && ` • Affichage limité à 3`}
             </p>
           </div>
           
           {/* Liste des favoris */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFavorites.map((favorite) => (
+            {favoritesToDisplay.map((favorite) => (
               <div key={favorite.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="p-4">
                   <div className="flex justify-between items-start">
@@ -237,8 +281,11 @@ const FavoritesList = () => {
             ))}
           </div>
           
-          {/* Chargement de plus de résultats */}
-          {hasMore && (
+          {/* Message d'abonnement si l'utilisateur n'est pas autorisé et a plus de 3 favoris */}
+          {!isAuthorized('favorites') && total > 3 && renderSubscriptionMessage()}
+          
+          {/* Chargement de plus de résultats (uniquement visible si l'utilisateur est autorisé) */}
+          {isAuthorized('favorites') && hasMore && (
             <div className="flex justify-center mt-6">
               <button
                 onClick={loadMoreFavorites}

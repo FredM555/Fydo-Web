@@ -1,4 +1,4 @@
-// src/components/admin/AdminPanel.js - Correction pour réafficher la liste des utilisateurs
+// src/components/admin/AdminPanel.js - Modifié pour ajouter nouvelles statistiques
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,7 +16,11 @@ import {
   Check,
   X,
   Loader,
-  MessageSquare
+  MessageSquare,
+  Database,
+  Star,
+  BarChart2,
+  FileSearch
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileLayout from '../profile/ProfileLayout';
@@ -38,6 +42,14 @@ const AdminPanel = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [reviewStats, setReviewStats] = useState({ pending: 0 });
+  
+  // Nouvelles statistiques
+  const [productStats, setProductStats] = useState({ 
+    totalProducts: 0, 
+    productsWithReviews: 0,
+    scanCount: 0,
+    searchNameCount: 0
+  });
 
   // Vérifier si l'utilisateur est bien admin
   useEffect(() => {
@@ -46,7 +58,7 @@ const AdminPanel = () => {
     }
   }, [userDetails, navigate]);
 
-  // Charger la liste des utilisateurs
+  // Charger la liste des utilisateurs et les statistiques
   useEffect(() => {
     const fetchUsers = async () => {
       if (!currentUser || !userDetails || userDetails.userType !== 'Admin') return;
@@ -89,12 +101,52 @@ const AdminPanel = () => {
           console.error("Erreur lors de la récupération des statistiques des avis:", statsError);
         }
         
+        // Compter le nombre total de produits
+        const { count: totalProductsCount, error: productsCountError } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true });
+          
+        if (productsCountError) throw productsCountError;
+        
+        // Compter le nombre de produits avec des avis
+        const { count: productsWithReviewsCount, error: productsWithReviewsError } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .not('average_rating', 'is', null)
+          .gt('average_rating', 0);
+          
+        if (productsWithReviewsError) throw productsWithReviewsError;
+        
+        // Compter le nombre de scans
+        const { count: scanCount, error: scanCountError } = await supabase
+          .from('product_history')
+          .select('*', { count: 'exact', head: true })
+          .eq('interaction_type', 'scan');
+          
+        if (scanCountError) throw scanCountError;
+        
+        // Compter le nombre de recherches par nom
+        const { count: searchNameCount, error: searchNameCountError } = await supabase
+          .from('product_history')
+          .select('*', { count: 'exact', head: true })
+          .eq('interaction_type', 'searchName');
+          
+        if (searchNameCountError) throw searchNameCountError;
+        
+        // Mettre à jour les statistiques
+        setProductStats({
+          totalProducts: totalProductsCount || 0,
+          productsWithReviews: productsWithReviewsCount || 0,
+          scanCount: scanCount || 0,
+          searchNameCount: searchNameCount || 0
+        });
+        
         setUsers(data);
         setFilteredUsers(data);
         setSubscriptionPlans(plans);
       } catch (err) {
-        console.error("Erreur lors de la récupération des utilisateurs:", err);
-        setError("Impossible de charger la liste des utilisateurs.");
+        console.error("Erreur lors de la récupération des données:", err);
+        setError("Impossible de charger les données.");
       } finally {
         setLoading(false);
       }
@@ -384,23 +436,40 @@ const AdminPanel = () => {
               </div>
             </div>
             
+            {/* Remplacement: "Avis en attente" par "Produits consultés" et "Produits avec avis" */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
-              <div className="p-3 rounded-full bg-red-100 mr-4">
-                <MessageSquare className="h-6 w-6 text-red-600" />
+              <div className="p-3 rounded-full bg-indigo-100 mr-4">
+                <Database className="h-6 w-6 text-indigo-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Avis en attente</p>
-                <p className="text-xl font-bold">{reviewStats.pending || 0}</p>
+                <p className="text-sm text-gray-500">Produits consultés</p>
+                <p className="text-xl font-bold">{productStats.totalProducts}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  <span className="flex items-center">
+                    <Star className="h-3 w-3 text-amber-500 mr-1" />
+                    {productStats.productsWithReviews} avec avis
+                  </span>
+                </p>
               </div>
             </div>
             
+            {/* Remplacement: "Avis rejetés" par "Nb de scans" et "Nb de recherches par nom" */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100 mr-4">
-                <X className="h-6 w-6 text-yellow-600" />
+              <div className="p-3 rounded-full bg-amber-100 mr-4">
+                <BarChart2 className="h-6 w-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Avis rejetés</p>
-                <p className="text-xl font-bold">{reviewStats.rejected || 0}</p>
+                <p className="text-sm text-gray-500">Interactions</p>
+                <div className="flex space-x-4">
+                  <div>
+                    <p className="text-lg font-bold">{productStats.scanCount}</p>
+                    <p className="text-xs text-gray-500">Scans</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{productStats.searchNameCount}</p>
+                    <p className="text-xs text-gray-500">Recherches</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
