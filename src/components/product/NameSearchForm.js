@@ -1,7 +1,8 @@
 // src/components/product/NameSearchForm.js
-import React from 'react';
-import { Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { Info, AlertCircle } from 'lucide-react';
 import AdvancedSearchFilters from '../AdvancedSearchFilters';
+import { Link } from 'react-router-dom';
 
 /**
  * Formulaire de recherche par nom avec filtres
@@ -17,57 +18,58 @@ const NameSearchForm = ({
   isAuthorized,
   loading
 }) => {
-  console.log('NameSearchForm - Render avec props:', {
-    productName,
-    searchFilters,
-    filtersApplied,
-    isMobile,
-    isAuthorized: typeof isAuthorized,
-    loading
-  });
+  // État pour gérer l'affichage des alertes d'autorisation
+  const [alertMessage, setAlertMessage] = useState(null);
 
   // Fonction sécurisée pour vérifier l'autorisation
   const checkAuthorization = (action) => {
-    console.log('NameSearchForm - checkAuthorization appelé avec:', action);
-    console.log('NameSearchForm - isAuthorized est de type:', typeof isAuthorized);
-    
     if (typeof isAuthorized !== 'function') {
-      console.warn('NameSearchForm - isAuthorized n\'est pas une fonction!');
       return true; // Par défaut, autoriser si ce n'est pas une fonction
     }
     
     try {
-      const result = isAuthorized(action);
-      console.log('NameSearchForm - résultat de isAuthorized:', result);
-      return result;
+      return isAuthorized(action);
     } catch (error) {
-      console.error('NameSearchForm - Erreur lors de l\'appel à isAuthorized:', error);
+      console.error('Erreur lors de l\'appel à isAuthorized:', error);
       return true; // En cas d'erreur, autoriser par défaut
     }
   };
 
   // Wrapper sécurisé pour onSearch
   const handleSearch = () => {
-    console.log('NameSearchForm - handleSearch appelé');
-    console.log('NameSearchForm - onSearch est de type:', typeof onSearch);
-    
-    if (typeof onSearch !== 'function') {
-      console.error('NameSearchForm - onSearch n\'est pas une fonction!');
+    if (!checkAuthorization('searchName')) {
+      showAuthorizationAlert();
       return;
     }
     
-    try {
-      console.log('NameSearchForm - Appel de onSearch');
-      onSearch();
-      console.log('NameSearchForm - onSearch exécuté avec succès');
-    } catch (error) {
-      console.error('NameSearchForm - Erreur lors de l\'appel à onSearch:', error);
+    if (typeof onSearch === 'function') {
+      try {
+        onSearch();
+      } catch (error) {
+        console.error('Erreur lors de l\'appel à onSearch:', error);
+      }
     }
+  };
+
+  // Afficher un message d'alerte pour les fonctions non autorisées
+  const showAuthorizationAlert = () => {
+    setAlertMessage(
+      "Vous avez atteint votre limite quotidienne de recherches par nom. Passez à un abonnement supérieur pour continuer."
+    );
+    
+    // Masquer l'alerte après 5 secondes
+    setTimeout(() => {
+      setAlertMessage(null);
+    }, 5000);
+  };
+  
+  // Réinitialiser l'alerte
+  const dismissAlert = () => {
+    setAlertMessage(null);
   };
 
   // Gestionnaire pour la touche Entrée
   const handleKeyDown = (e) => {
-    console.log('NameSearchForm - handleKeyDown avec touche:', e.key);
     if (e.key === 'Enter') {
       handleSearch();
     }
@@ -82,35 +84,54 @@ const NameSearchForm = ({
     ? safeSearchFilters.withoutIngredients 
     : [];
   
-  console.log('NameSearchForm - safeSearchFilters:', safeSearchFilters);
-  
   // Vérifier si le bouton doit être désactivé
-  const isButtonDisabled = loading || (typeof isAuthorized === 'function' && !isAuthorized('searchName'));
-  console.log('NameSearchForm - isButtonDisabled:', isButtonDisabled);
+  const isButtonDisabled = loading || !checkAuthorization('searchName');
+  
+  // Message d'alerte
+  const alertComponent = alertMessage && (
+    <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
+      <div className="flex items-start">
+        <AlertCircle size={16} className="text-amber-500 mr-2 mt-1 flex-shrink-0" />
+        <div className="flex-1">
+          <p className="text-sm text-amber-800">{alertMessage}</p>
+          <div className="mt-2 flex space-x-2">
+            <Link
+              to="/abonnements"
+              className="px-3 py-1 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 transition-colors"
+            >
+              S'abonner
+            </Link>
+            <button 
+              className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 transition-colors"
+              onClick={dismissAlert}
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
   
   return (
     <div className="mb-6">
+      {alertComponent}
+      
       {/* Version desktop */}
       {!isMobile && (
         <div className="flex items-center space-x-2 mb-4">
           <input
             type="text"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+            className={`flex-1 px-4 py-2 border ${alertMessage ? 'border-amber-400 ring-1 ring-amber-400' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
             placeholder="Saisissez le nom du produit (ex: macaroni, yaourt...)"
             value={productName}
-            onChange={(e) => {
-              console.log('NameSearchForm - onChange:', e.target.value);
-              setProductName(e.target.value);
-            }}
+            onChange={(e) => setProductName(e.target.value)}
             onKeyDown={handleKeyDown}
           />
           <button
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]"
-            onClick={() => {
-              console.log('NameSearchForm - onClick button');
-              handleSearch();
-            }}
-            disabled={isButtonDisabled}
+            className={`px-4 py-2 ${isButtonDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]`}
+            onClick={handleSearch}
+            disabled={loading}
           >
             {loading ? (
               <>
@@ -130,19 +151,16 @@ const NameSearchForm = ({
         <div className="space-y-2 mb-4">
           <input
             type="text"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+            className={`w-full px-4 py-2 border ${alertMessage ? 'border-amber-400 ring-1 ring-amber-400' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
             placeholder="Saisissez le nom du produit (ex: macaroni, yaourt...)"
             value={productName}
             onChange={(e) => setProductName(e.target.value)}
             onKeyDown={handleKeyDown}
           />
           <button
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center"
-            onClick={() => {
-              console.log('NameSearchForm (mobile) - onClick button');
-              handleSearch();
-            }}
-            disabled={isButtonDisabled}
+            className={`w-full px-4 py-2 ${isButtonDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center`}
+            onClick={handleSearch}
+            disabled={loading}
           >
             {loading ? (
               <>
@@ -159,16 +177,12 @@ const NameSearchForm = ({
       
       {/* Filtres avancés */}
       <AdvancedSearchFilters onApplyFilters={(filters) => {
-        console.log('NameSearchForm - onApplyFilters appelé avec:', filters);
         if (typeof onApplyFilters === 'function') {
           try {
             onApplyFilters(filters);
-            console.log('NameSearchForm - onApplyFilters exécuté avec succès');
           } catch (error) {
-            console.error('NameSearchForm - Erreur lors de l\'appel à onApplyFilters:', error);
+            console.error('Erreur lors de l\'appel à onApplyFilters:', error);
           }
-        } else {
-          console.error('NameSearchForm - onApplyFilters n\'est pas une fonction!');
         }
       }} />
       
@@ -192,7 +206,5 @@ const NameSearchForm = ({
     </div>
   );
 };
-
-console.log('Module NameSearchForm chargé');
 
 export default NameSearchForm;

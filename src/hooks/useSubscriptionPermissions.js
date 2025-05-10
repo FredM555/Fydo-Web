@@ -101,10 +101,16 @@ const useSubscriptionPermissions = () => {
       case 'scan':
         result = userQuotas.scanAuto < userLimits.maxScanAuto;
         break;
+      case 'manual_search':
+        result = userQuotas.scanManual < userLimits.maxScanManual;
+        break;
       case 'manual_entry':
         result = userQuotas.scanManual < userLimits.maxScanManual;
         break;
       case 'searchName':
+        result = userQuotas.searchName < userLimits.maxSearchName;
+        break;
+      case 'search_by_name':
         result = userQuotas.searchName < userLimits.maxSearchName;
         break;
       case 'view_reviews':
