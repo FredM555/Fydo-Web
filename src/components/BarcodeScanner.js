@@ -63,7 +63,10 @@ const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
       numOfWorkers: navigator.hardwareConcurrency || 4,
       frequency: 10,
       decoder: {
-        readers: ["ean_reader"]
+        readers: [          "ean_reader",
+          "ean_8_reader",
+          "code_39_reader",
+          "code_128_reader"]
       },
       locate: true
     }, function(err) {

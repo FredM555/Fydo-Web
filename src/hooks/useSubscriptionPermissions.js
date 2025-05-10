@@ -221,4 +221,4 @@ const useSubscriptionPermissions = () => {
   };
 };
 
-export default useSubscriptionPermissions;
+export default useSubscriptionPermissions;   
