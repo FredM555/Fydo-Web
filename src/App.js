@@ -54,11 +54,8 @@ function App() {
         <div className="min-h-screen bg-green-50 flex flex-col">
           <Helmet>
             <title>Fydo - Avis Produits</title>
-            <link 
-              rel="icon" 
-              href="/images/Fydo-icone.png"
-              type="image/png" 
-            />
+  <link rel="icon" href="/images/Fydo-icone.png" type="image/png" />
+  <link rel="shortcut icon" href="/images/Fydo-icone.png" type="image/png" />
           </Helmet>
           
           <Header />
