@@ -26,7 +26,7 @@ const BarcodeSearchForm = ({
   // Gestionnaire pour la touche Entrée
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      if (!isAuthorized('manual_entry')) {
+      if (isAuthorized && !isAuthorized('manual_entry')) {
         showAuthorizationAlert('manual_entry');
         return;
       }

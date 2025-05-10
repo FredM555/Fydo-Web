@@ -17,12 +17,76 @@ const NameSearchForm = ({
   isAuthorized,
   loading
 }) => {
-  // Gestionnaire pour la touche Entrée
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      onSearch();
+  console.log('NameSearchForm - Render avec props:', {
+    productName,
+    searchFilters,
+    filtersApplied,
+    isMobile,
+    isAuthorized: typeof isAuthorized,
+    loading
+  });
+
+  // Fonction sécurisée pour vérifier l'autorisation
+  const checkAuthorization = (action) => {
+    console.log('NameSearchForm - checkAuthorization appelé avec:', action);
+    console.log('NameSearchForm - isAuthorized est de type:', typeof isAuthorized);
+    
+    if (typeof isAuthorized !== 'function') {
+      console.warn('NameSearchForm - isAuthorized n\'est pas une fonction!');
+      return true; // Par défaut, autoriser si ce n'est pas une fonction
+    }
+    
+    try {
+      const result = isAuthorized(action);
+      console.log('NameSearchForm - résultat de isAuthorized:', result);
+      return result;
+    } catch (error) {
+      console.error('NameSearchForm - Erreur lors de l\'appel à isAuthorized:', error);
+      return true; // En cas d'erreur, autoriser par défaut
     }
   };
+
+  // Wrapper sécurisé pour onSearch
+  const handleSearch = () => {
+    console.log('NameSearchForm - handleSearch appelé');
+    console.log('NameSearchForm - onSearch est de type:', typeof onSearch);
+    
+    if (typeof onSearch !== 'function') {
+      console.error('NameSearchForm - onSearch n\'est pas une fonction!');
+      return;
+    }
+    
+    try {
+      console.log('NameSearchForm - Appel de onSearch');
+      onSearch();
+      console.log('NameSearchForm - onSearch exécuté avec succès');
+    } catch (error) {
+      console.error('NameSearchForm - Erreur lors de l\'appel à onSearch:', error);
+    }
+  };
+
+  // Gestionnaire pour la touche Entrée
+  const handleKeyDown = (e) => {
+    console.log('NameSearchForm - handleKeyDown avec touche:', e.key);
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+  
+  // Déstructurer searchFilters en toute sécurité
+  const safeSearchFilters = searchFilters || { withIngredients: [], withoutIngredients: [] };
+  const withIngredients = Array.isArray(safeSearchFilters.withIngredients) 
+    ? safeSearchFilters.withIngredients 
+    : [];
+  const withoutIngredients = Array.isArray(safeSearchFilters.withoutIngredients) 
+    ? safeSearchFilters.withoutIngredients 
+    : [];
+  
+  console.log('NameSearchForm - safeSearchFilters:', safeSearchFilters);
+  
+  // Vérifier si le bouton doit être désactivé
+  const isButtonDisabled = loading || (typeof isAuthorized === 'function' && !isAuthorized('searchName'));
+  console.log('NameSearchForm - isButtonDisabled:', isButtonDisabled);
   
   return (
     <div className="mb-6">
@@ -34,13 +98,19 @@ const NameSearchForm = ({
             className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Saisissez le nom du produit (ex: macaroni, yaourt...)"
             value={productName}
-            onChange={(e) => setProductName(e.target.value)}
+            onChange={(e) => {
+              console.log('NameSearchForm - onChange:', e.target.value);
+              setProductName(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
           />
           <button
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]"
-            onClick={() => onSearch()}
-            disabled={loading || !isAuthorized('searchName')}
+            onClick={() => {
+              console.log('NameSearchForm - onClick button');
+              handleSearch();
+            }}
+            disabled={isButtonDisabled}
           >
             {loading ? (
               <>
@@ -68,8 +138,11 @@ const NameSearchForm = ({
           />
           <button
             className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center"
-            onClick={() => onSearch()}
-            disabled={loading || !isAuthorized('searchName')}
+            onClick={() => {
+              console.log('NameSearchForm (mobile) - onClick button');
+              handleSearch();
+            }}
+            disabled={isButtonDisabled}
           >
             {loading ? (
               <>
@@ -85,7 +158,19 @@ const NameSearchForm = ({
       )}
       
       {/* Filtres avancés */}
-      <AdvancedSearchFilters onApplyFilters={onApplyFilters} />
+      <AdvancedSearchFilters onApplyFilters={(filters) => {
+        console.log('NameSearchForm - onApplyFilters appelé avec:', filters);
+        if (typeof onApplyFilters === 'function') {
+          try {
+            onApplyFilters(filters);
+            console.log('NameSearchForm - onApplyFilters exécuté avec succès');
+          } catch (error) {
+            console.error('NameSearchForm - Erreur lors de l\'appel à onApplyFilters:', error);
+          }
+        } else {
+          console.error('NameSearchForm - onApplyFilters n\'est pas une fonction!');
+        }
+      }} />
       
       {/* Affichage des filtres actifs */}
       {filtersApplied && (
@@ -94,11 +179,11 @@ const NameSearchForm = ({
           <div className="text-sm text-blue-700">
             <p className="font-medium">Filtres actifs :</p>
             <ul className="mt-1 ml-4 list-disc">
-              {searchFilters.withIngredients.length > 0 && (
-                <li>AVEC : {searchFilters.withIngredients.join(', ')}</li>
+              {withIngredients.length > 0 && (
+                <li>AVEC : {withIngredients.join(', ')}</li>
               )}
-              {searchFilters.withoutIngredients.length > 0 && (
-                <li>SANS : {searchFilters.withoutIngredients.join(', ')}</li>
+              {withoutIngredients.length > 0 && (
+                <li>SANS : {withoutIngredients.join(', ')}</li>
               )}
             </ul>
           </div>
@@ -107,5 +192,7 @@ const NameSearchForm = ({
     </div>
   );
 };
+
+console.log('Module NameSearchForm chargé');
 
 export default NameSearchForm;

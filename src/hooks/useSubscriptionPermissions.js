@@ -5,7 +5,6 @@ import subscriptionService from '../services/subscriptionAuthorizationService';
 
 /**
  * Hook personnalisé pour gérer les autorisations selon l'abonnement utilisateur
- * Utilise le service subscriptionAuthorizationService pour les vérifications
  */
 const useSubscriptionPermissions = () => {
   // États pour les limites et l'utilisation
@@ -164,7 +163,6 @@ const useSubscriptionPermissions = () => {
   
   /**
    * Permet d'incrémenter manuellement le compteur d'une action spécifique
-   * Utile après un ajout réussi à l'historique
    * @param {string} actionType - Type d'action ('scan', 'manual_entry', 'searchName')
    */
   const incrementUsage = (actionType) => {
@@ -207,6 +205,7 @@ const useSubscriptionPermissions = () => {
     return userLimits.maxReviewAccess;
   };
   
+  // Retourner toutes les fonctions et valeurs nécessaires
   return {
     isAuthorized,
     checkAuthorization,
@@ -221,4 +220,4 @@ const useSubscriptionPermissions = () => {
   };
 };
 
-export default useSubscriptionPermissions;   
+export default useSubscriptionPermissions;

@@ -434,4 +434,5 @@ const useProductSearch = () => {
   };
 };
 
-export default useProductSearch;
+export default useProductSearch; 
+

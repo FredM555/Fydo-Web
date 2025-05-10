@@ -94,7 +94,7 @@ const ProductSearchEnhanced = () => {
         <div className="max-w-4xl mx-auto">
           {/* Titre de la page */}
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold text-green-800 mb-2">Recherche de Produit <span className="text-green-600">...</span></h1>
+            <h1 className="text-3xl font-bold text-green-800 mb-2">Recherche de Produit <span className="text-green-600">..</span></h1>
             <p className="text-green-700">Recherchez un produit par code-barres ou par nom avec des filtres avancés</p>
           </div>
           
@@ -124,7 +124,7 @@ const ProductSearchEnhanced = () => {
               showScanner={showScanner}
               setShowScanner={setShowScanner}
               setBarcodeSource={setBarcodeSource}
-              isAuthorized={isAuthorized}
+              isAuthorized={(action) => isAuthorized(action)}
               loading={loading}
             />
           )}
@@ -139,7 +139,7 @@ const ProductSearchEnhanced = () => {
               searchFilters={searchFilters}
               filtersApplied={filtersApplied}
               isMobile={isMobileDevice}
-              isAuthorized={isAuthorized}
+              isAuthorized={(action) => isAuthorized(action)}
               loading={loading}
             />
           )}

@@ -1,4 +1,4 @@
-// src/components/SearchResultItem.js
+// src/components/SearchResultItem.js - Version modifiée
 import React, { useState, useEffect } from 'react';
 import { Star, MessageSquare, Heart } from 'lucide-react';
 import { formatPrice } from '../utils/formatters';
@@ -6,9 +6,15 @@ import { filterProductByAllFields, formatIngredients } from '../utils/searchUtil
 import FavoriteButton from './FavoriteButton';
 import { getProductDetails } from '../services/productService';
 
-const SearchResultItem = ({ result, onSelect, searchFilters }) => {
+const SearchResultItem = ({ result, onSelect, searchFilters = {} }) => {
   const [productDetails, setProductDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // S'assurer que searchFilters est bien un objet avec les propriétés attendues
+  const filters = {
+    withIngredients: Array.isArray(searchFilters?.withIngredients) ? searchFilters.withIngredients : [],
+    withoutIngredients: Array.isArray(searchFilters?.withoutIngredients) ? searchFilters.withoutIngredients : []
+  };
 
   // Récupérer les données détaillées du produit depuis la table products
   useEffect(() => {
@@ -41,10 +47,37 @@ const SearchResultItem = ({ result, onSelect, searchFilters }) => {
   const totalReviews = productDetails?.total_reviews || result.reviews_count || 0;
   const totalFavorites = productDetails?.total_favorites || result.favorites_count || 0;
 
+  // Fonction sécurisée pour vérifier si un produit contient un ingrédient
+  const safelyCheckIngredient = (ingredient, isIncluded) => {
+    try {
+      if (isIncluded) {
+        return filterProductByAllFields(result, { 
+          withIngredients: [ingredient], 
+          withoutIngredients: [] 
+        });
+      } else {
+        return !filterProductByAllFields(result, { 
+          withIngredients: [], 
+          withoutIngredients: [ingredient] 
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du filtrage:', error);
+      return false;
+    }
+  };
+
+  // Gestionnaire de clic sécurisé
+  const handleSelect = () => {
+    if (typeof onSelect === 'function') {
+      onSelect(result.code);
+    }
+  };
+
   return (
     <div 
       className="p-4 hover:bg-green-50 cursor-pointer transition-colors"
-      onClick={() => onSelect(result.code)}
+      onClick={handleSelect}
     >
       <div className="flex items-center">
         <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden mr-4 flex-shrink-0">
@@ -128,8 +161,8 @@ const SearchResultItem = ({ result, onSelect, searchFilters }) => {
           
           {/* Badges de filtres */}
           <div className="flex flex-wrap gap-1 mt-2">
-            {searchFilters.withIngredients.map(ing => {
-              const hasIngredient = filterProductByAllFields(result, { withIngredients: [ing], withoutIngredients: [] });
+            {filters.withIngredients.map(ing => {
+              const hasIngredient = safelyCheckIngredient(ing, true);
               return (
                 <span 
                   key={`with-${ing}`} 
@@ -144,8 +177,8 @@ const SearchResultItem = ({ result, onSelect, searchFilters }) => {
               );
             })}
             
-            {searchFilters.withoutIngredients.map(ing => {
-              const hasIngredient = !filterProductByAllFields(result, { withIngredients: [], withoutIngredients: [ing] });
+            {filters.withoutIngredients.map(ing => {
+              const hasIngredient = !safelyCheckIngredient(ing, false);
               return (
                 <span 
                   key={`without-${ing}`} 
