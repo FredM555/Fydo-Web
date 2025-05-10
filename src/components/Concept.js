@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Camera, Star, ShoppingBag, Coffee } from 'lucide-react';
 
+
 const Concept = () => {
   const [activeSection, setActiveSection] = useState(1);
 
@@ -19,6 +20,7 @@ const Concept = () => {
         <h2 className="text-3xl font-bold text-center text-green-800 mb-12">Notre Concept</h2>
         
         <div className="flex flex-col md:flex-row justify-center items-center md:space-x-8 space-y-8 md:space-y-0">
+          
           <div 
             className={`bg-green-50 p-6 rounded-xl shadow-md max-w-xs w-full cursor-pointer transform transition-transform duration-300 ${activeSection === 1 ? 'scale-105 border-2 border-green-500' : ''}`}
             onClick={() => setActiveSection(1)}

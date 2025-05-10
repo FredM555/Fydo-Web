@@ -1,116 +1,159 @@
-// src/components/BarcodeScanner.js - version corrigée pour l'autostart
+// src/components/BarcodeScanner.js - version améliorée avec meilleure gestion des permissions
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
 import Quagga from 'quagga';
 
 const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
-  const [isScanning, setIsScanning] = useState(autoStart); // Toujours initialisé à false
+  const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
+  const [permissionRequested, setPermissionRequested] = useState(false);
   const scannerRef = useRef(null);
-  const autoStartAttempted = useRef(false); // Pour éviter de multiples tentatives
+  const initialized = useRef(false);
+  
+  // Fonction pour vérifier et demander les permissions de la caméra
+  const checkCameraPermission = async () => {
+    try {
+      // Demander explicitement l'accès à la caméra
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      
+      // Si on arrive ici, la permission a été accordée
+      setHasPermission(true);
+      
+      // Arrêter le flux vidéo puisque Quagga en créera un nouveau
+      stream.getTracks().forEach(track => track.stop());
+      
+      return true;
+    } catch (err) {
+      console.error("Erreur d'accès à la caméra:", err);
+      setHasPermission(false);
+      return false;
+    } finally {
+      setPermissionRequested(true);
+    }
+  };
   
   // Activation du scanner avec Quagga
-  const startScanner = () => {
+  const startScanner = async () => {
     if (!scannerRef.current) {
       console.error("Élément DOM manquant pour le scanner");
       return;
     }
     
+    // Vérifier les permissions avant de démarrer
+    if (hasPermission === null && !permissionRequested) {
+      const hasAccess = await checkCameraPermission();
+      if (!hasAccess) return;
+    }
+    
     console.log("Tentative d'initialisation de Quagga...");
     
     Quagga.init({
-inputStream: {
-  name: "Live",
-  type: "LiveStream",
-  target: scannerRef.current,
-  constraints: {
-    facingMode: "environment",
-  },
-  area: { // se concentre sur le centre
-    top: "25%",    // Y-start
-    right: "75%",  // X-end
-    left: "25%",
-    bottom: "75%"  // Y-end
-  },
-  singleChannel: false, // true: grayscale, false: color
-  frequency: 5 // en ms ; plus haut = moins de scans/secondes
-},
-      locator: {
-        patchSize: "large",
-        halfSample: false,
-      },
-      numOfWorkers: navigator.hardwareConcurrency || 4,
-      decoder: {
-        decoder: {
-          readers: ["ean_reader"], // ou "ean_13_reader", alias de ean
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: scannerRef.current,
+        constraints: {
+          facingMode: "environment",
         },
       },
-      locate: true,
+      locator: {
+        patchSize: "medium",
+        halfSample: true,
+      },
+      numOfWorkers: navigator.hardwareConcurrency || 4,
+      frequency: 10,
+      decoder: {
+        readers: ["ean_reader"]
+      },
+      locate: true
     }, function(err) {
       if (err) {
         console.error("Erreur d'initialisation de Quagga:", err);
         setHasPermission(false);
+        setIsScanning(false);
         return;
       }
       
       console.log("Quagga initialisé avec succès");
+      initialized.current = true;
+      setHasPermission(true);
+      
+      // Démarrer Quagga
       Quagga.start();
       setIsScanning(true);
-      setHasPermission(true);
-    });
-
-    // Configuration de l'événement de détection
-    Quagga.onDetected((result) => {
-      console.log("Résultat brut Quagga :", result);
-      if (result.codeResult) {
-        const code = result.codeResult.code;
-        console.log("Code-barres détecté:", code);
-        
-        // Arrêter le scan
-        stopScanner();
-        
-        // Appeler le callback avec le code détecté
-        if (onScanComplete) {
-          onScanComplete(code);
+      
+      // Configuration de l'événement de détection
+      Quagga.onDetected((result) => {
+        if (result && result.codeResult) {
+          const code = result.codeResult.code;
+          console.log("Code-barres détecté:", code);
+          
+          // Arrêter le scan
+          stopScanner();
+          
+          // Appeler le callback avec le code détecté
+          if (onScanComplete) {
+            onScanComplete(code);
+          }
         }
-      }
+      });
     });
   };
   
   // Arrêt du scanner
   const stopScanner = () => {
-    if (isScanning) {
+    if (initialized.current) {
       Quagga.stop();
+      initialized.current = false;
       setIsScanning(false);
     }
   };
   
-
+  // Gestionnaire pour démarrer le scan après une interaction utilisateur
+  const handleStartScan = async () => {
+    if (hasPermission === false) {
+      // Si la permission a déjà été refusée, tenter de la redemander
+      const hasAccess = await checkCameraPermission();
+      if (!hasAccess) return;
+    }
+    
+    setIsScanning(true);
+  };
+  
+  // Effet pour démarrer le scanner automatiquement si autoStart est true
+  // Mais uniquement après une vérification de permission
+  useEffect(() => {
+    if (autoStart && !initialized.current && !permissionRequested) {
+      checkCameraPermission().then(hasAccess => {
+        if (hasAccess) {
+          // Petit délai pour s'assurer que le DOM est prêt
+          setTimeout(() => {
+            setIsScanning(true);
+          }, 300);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
   
   // Effet pour démarrer/arrêter le scanner quand isScanning change
   useEffect(() => {
-    if (isScanning) {
-      console.log("isScanning est true, démarrage du scanner...");
+    if (isScanning && !initialized.current) {
       const timeout = setTimeout(() => {
-        if (scannerRef.current) {
-          startScanner();
-        }
+        startScanner();
       }, 100);
       return () => clearTimeout(timeout);
-    } else {
-      // Si nous passons à isScanning = false, on s'assure d'arrêter Quagga
-      Quagga.stop();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning]);
   
   // Nettoyage lors du démontage du composant
   useEffect(() => {
     return () => {
       console.log("Démontage du composant BarcodeScanner");
-      if (isScanning) {
-        Quagga.stop();
-      }
+      stopScanner();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   return (
@@ -118,7 +161,7 @@ inputStream: {
       {!isScanning ? (
         <div className="text-center">
           <button
-            onClick={() => setIsScanning(true)}
+            onClick={handleStartScan}
             className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center mx-auto"
           >
             <Camera className="mr-2" size={20} />
@@ -144,17 +187,18 @@ inputStream: {
               </div>
             </div>
           </div>
-          
-          {/* Boutons de contrôle */}
-          <div className="mt-4 flex justify-center">
-
-          </div>
         </div>
       )}
       
       {hasPermission === false && (
         <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-lg">
-          L'accès à la caméra a été refusé. Veuillez autoriser l'accès dans les paramètres de votre navigateur.
+          <p>L'accès à la caméra a été refusé. Veuillez autoriser l'accès dans les paramètres de votre navigateur.</p>
+          <button 
+            className="mt-2 bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm"
+            onClick={checkCameraPermission}
+          >
+            Réessayer
+          </button>
         </div>
       )}
     </div>
