@@ -90,7 +90,8 @@ export const AuthProvider = ({ children }) => {
           manualSearchCount: supabaseUser.manual_search_count || 0,
           scanCount: supabaseUser.scan_count || 0,
           status: supabaseUser.status || 'bronze',
-          isSuspended: supabaseUser.is_suspended || false
+          isSuspended: supabaseUser.is_suspended || false,
+          subscription_name: supabaseUser.subscription_name || 'Gratuit'
         });
         
         // Récupérer les informations d'abonnement

@@ -197,7 +197,7 @@ const AdminPanel = () => {
       // Mettre à jour le type d'utilisateur
       const { error: userUpdateError } = await supabase
         .from('users')
-        .update({ user_type: plan.name })
+        .update({ subscription_name: plan.name })
         .eq('id', selectedUserId);
         
       if (userUpdateError) throw userUpdateError;

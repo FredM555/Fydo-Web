@@ -12,13 +12,20 @@ import { supabase } from '../supabaseClient';
  */
 export const getSubscriptionLimits = async (planName = 'Gratuit') => {
   try {
+    console.log(`Récupération des limites pour le plan: ${planName}`);
+    
     const { data, error } = await supabase
       .from('subscription_plans')
       .select('*')
       .eq('name', planName)
       .single();
       
-    if (error) throw error;
+    if (error) {
+      console.error(`Erreur lors de la récupération du plan ${planName}:`, error);
+      throw error;
+    }
+    
+    console.log(`Données du plan récupérées:`, data);
     
     return {
       success: true,
@@ -50,23 +57,35 @@ export const getDailyUsage = async (userId) => {
   try {
     if (!userId) throw new Error("ID utilisateur requis");
     
+    console.log(`Récupération de l'utilisation quotidienne pour l'utilisateur ${userId}`);
+    
     // Calculer le début de la journée
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+    
+    console.log(`Date de début de la journée: ${todayISO}`);
     
     // Récupérer les différents types d'interactions pour aujourd'hui
     const { data, error } = await supabase
       .from('product_history')
       .select('interaction_type')
       .eq('user_id', userId)
-      .gte('interaction_date', today.toISOString());
+      .gte('interaction_date', todayISO);
       
-    if (error) throw error;
+    if (error) {
+      console.error(`Erreur lors de la récupération de l'historique:`, error);
+      throw error;
+    }
+    
+    console.log(`Nombre total d'interactions trouvées: ${data?.length || 0}`);
     
     // Compter les différents types d'interactions
     const scanAuto = data.filter(item => item.interaction_type === 'scan').length;
     const scanManual = data.filter(item => item.interaction_type === 'manual_entry').length;
     const searchName = data.filter(item => item.interaction_type === 'searchName').length;
+    
+    console.log(`Compteurs d'utilisation:`, { scanAuto, scanManual, searchName });
     
     return {
       success: true,
@@ -95,6 +114,8 @@ export const checkActionAuthorization = async (userId, actionType) => {
   try {
     if (!userId) throw new Error("ID utilisateur requis");
     
+    console.log(`Vérification d'autorisation pour l'utilisateur ${userId}, action: ${actionType}`);
+    
     // 1. Récupérer le plan d'abonnement actif de l'utilisateur
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -102,19 +123,28 @@ export const checkActionAuthorization = async (userId, actionType) => {
       .eq('id', userId)
       .single();
       
-    if (userError) throw userError;
+    if (userError) {
+      console.error("Erreur lors de la récupération des données utilisateur:", userError);
+      throw userError;
+    }
     
     // 2. Récupérer les limites du plan
     const { success: limitsSuccess, limits, error: limitsError } = 
       await getSubscriptionLimits(userData.user_type || 'Gratuit');
       
-    if (!limitsSuccess) throw new Error(limitsError);
+    if (!limitsSuccess) {
+      console.error("Erreur lors de la récupération des limites:", limitsError);
+      throw new Error(limitsError);
+    }
     
     // 3. Récupérer l'utilisation quotidienne
     const { success: usageSuccess, usage, error: usageError } = 
       await getDailyUsage(userId);
       
-    if (!usageSuccess) throw new Error(usageError);
+    if (!usageSuccess) {
+      console.error("Erreur lors de la récupération de l'utilisation:", usageError);
+      throw new Error(usageError);
+    }
     
     // 4. Vérifier l'autorisation selon le type d'action
     let isAuthorized = false;
@@ -149,6 +179,9 @@ export const checkActionAuthorization = async (userId, actionType) => {
         isAuthorized = false;
         reason = 'Type d\'action non reconnu';
     }
+    
+    console.log(`Résultat de l'autorisation pour ${actionType}: ${isAuthorized ? 'Autorisé' : 'Non autorisé'}`);
+    console.log(`Raison: ${reason || 'Aucune raison spécifiée'}`);
     
     return {
       success: true,
@@ -208,9 +241,12 @@ export const getActionDeniedMessage = (actionType, usage, limits) => {
   return `Quota quotidien dépassé: ${currentUsage}/${maxLimit} ${actionName}. Passez à un abonnement supérieur pour plus d'accès.`;
 };
 
-export default {
+// Exporter les fonctions individuellement ET comme un objet par défaut
+const subscriptionService = {
   getSubscriptionLimits,
   getDailyUsage,
   checkActionAuthorization,
   getActionDeniedMessage
 };
+
+export default subscriptionService;

@@ -1,12 +1,8 @@
-// src/components/AuthRequiredScreen.js
+// src/components/common/AuthRequiredScreen.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 
-/**
- * Écran affiché quand l'authentification est requise
- * @param {string} redirectPath - Chemin de redirection après la connexion
- */
 const AuthRequiredScreen = ({ redirectPath = '/recherche-filtre' }) => {
   const navigate = useNavigate();
   

@@ -1,13 +1,11 @@
 // src/hooks/useSubscriptionPermissions.js
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../supabaseClient';
-import { getUserHistory } from '../services/productService';
+import subscriptionService from '../services/subscriptionAuthorizationService';
 
 /**
  * Hook personnalisé pour gérer les autorisations selon l'abonnement utilisateur
- * Fournit les fonctions pour vérifier si un utilisateur peut effectuer une action
- * et gérer les quotas d'utilisation
+ * Utilise le service subscriptionAuthorizationService pour les vérifications
  */
 const useSubscriptionPermissions = () => {
   // États pour les limites et l'utilisation
@@ -31,101 +29,56 @@ const useSubscriptionPermissions = () => {
   const [error, setError] = useState(null);
   
   // Récupération du contexte d'authentification
-  const { currentUser, userDetails, subscription, subscriptionPlan } = useAuth();
+  const { currentUser, userDetails } = useAuth();
   
   // Effet pour initialiser les données
   useEffect(() => {
     if (currentUser && userDetails) {
-      loadUserLimits();
-      loadUserUsage();
+      loadUserData();
     }
   }, [currentUser, userDetails]);
   
   /**
-   * Charge les limites d'utilisation selon l'abonnement de l'utilisateur
+   * Charge les données d'utilisation et les limites en une seule fonction
    */
-  const loadUserLimits = async () => {
+  const loadUserData = async () => {
     try {
       setLoading(true);
+      console.log("Chargement des données utilisateur...");
       
-      // Si on a déjà un plan d'abonnement dans le contexte Auth
-      if (subscriptionPlan) {
-        setUserLimits({
-          maxScanAuto: subscriptionPlan.max_scan_auto || 0,
-          maxScanManual: subscriptionPlan.max_scan_manuel || 0,
-          maxSearchName: subscriptionPlan.max_recherche || 0,
-          maxReviewAccess: subscriptionPlan.max_consult_avis || 0,
-          canAccessFavorites: subscriptionPlan.can_favorite || false,
-          canAccessHistory: subscriptionPlan.can_history || false,
-          canAccessDetailedInfo: subscriptionPlan.can_access_detailed_info || false
-        });
+      if (!userDetails || !userDetails.id) {
+        console.warn("Impossible de charger les données : détails utilisateur manquants");
         return;
       }
       
-      // Sinon, récupérer le plan gratuit par défaut
-      const { data: freePlan, error } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .eq('name', 'Gratuit')
-        .single();
-        
-      if (error) throw error;
-      
-      setUserLimits({
-        maxScanAuto: freePlan.max_scan_auto || 0,
-        maxScanManual: freePlan.max_scan_manuel || 0,
-        maxSearchName: freePlan.max_recherche || 0,
-        maxReviewAccess: freePlan.max_consult_avis || 0,
-        canAccessFavorites: freePlan.can_favorite || false,
-        canAccessHistory: freePlan.can_history || false,
-        canAccessDetailedInfo: freePlan.can_access_detailed_info || false
-      });
-    } catch (err) {
-      console.error("Erreur lors du chargement des limites d'utilisation:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  /**
-   * Charge l'utilisation actuelle de l'utilisateur pour aujourd'hui
-   */
-  const loadUserUsage = async () => {
-    if (!userDetails || !userDetails.id) return;
-    
-    try {
-      setLoading(true);
-      
-      // Calculer le début de la journée
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      // Récupérer l'historique d'aujourd'hui
-      const { data, error } = await getUserHistory(userDetails.id, 1000, 0);
-      
-      if (error) throw error;
-      
-      if (data && data.data) {
-        // Filtrer pour ne garder que les interactions d'aujourd'hui
-        const todayInteractions = data.data.filter(item => {
-          const interactionDate = new Date(item.interaction_date);
-          return interactionDate >= today;
-        });
-        
-        // Compter les différents types d'interactions
-        const scanAuto = todayInteractions.filter(item => item.interaction_type === 'scan').length;
-        const scanManual = todayInteractions.filter(item => item.interaction_type === 'manual_entry').length;
-        const searchName = todayInteractions.filter(item => item.interaction_type === 'searchName').length;
-        
-        setUserQuotas({
-          scanAuto,
-          scanManual,
-          searchName
-        });
+      // Récupérer le type d'abonnement de l'utilisateur
+      let planName = 'Gratuit'; // Par défaut
+      if (userDetails.subscription_name) {
+        planName = userDetails.subscription_name;
       }
+      
+      console.log("Plan d'abonnement détecté:", planName);
+      
+      // Charger les limites du plan d'abonnement
+      const limitsResponse = await subscriptionService.getSubscriptionLimits(planName);
+      if (!limitsResponse.success) {
+        throw new Error(`Erreur lors du chargement des limites: ${limitsResponse.error}`);
+      }
+      
+      console.log("Limites récupérées:", limitsResponse.limits);
+      setUserLimits(limitsResponse.limits);
+      
+      // Charger l'utilisation quotidienne
+      const usageResponse = await subscriptionService.getDailyUsage(userDetails.id);
+      if (!usageResponse.success) {
+        throw new Error(`Erreur lors du chargement de l'utilisation: ${usageResponse.error}`);
+      }
+      
+      console.log("Utilisation récupérée:", usageResponse.usage);
+      setUserQuotas(usageResponse.usage);
+      
     } catch (err) {
-      console.error("Erreur lors du chargement de l'utilisation:", err);
+      console.error("Erreur lors du chargement des données utilisateur:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -143,23 +96,69 @@ const useSubscriptionPermissions = () => {
       return false;
     }
     
+    let result = false;
+    
     switch (actionType) {
       case 'scan':
-        return userQuotas.scanAuto < userLimits.maxScanAuto;
+        result = userQuotas.scanAuto < userLimits.maxScanAuto;
+        break;
       case 'manual_entry':
-        return userQuotas.scanManual < userLimits.maxScanManual;
+        result = userQuotas.scanManual < userLimits.maxScanManual;
+        break;
       case 'searchName':
-        return userQuotas.searchName < userLimits.maxSearchName;
+        result = userQuotas.searchName < userLimits.maxSearchName;
+        break;
       case 'view_reviews':
-        return true; // Toujours autorisé, mais le nombre peut être limité
+        result = true; // Toujours autorisé, mais le nombre peut être limité
+        break;
       case 'favorites':
-        return userLimits.canAccessFavorites;
+        result = userLimits.canAccessFavorites;
+        break;
       case 'history':
-        return userLimits.canAccessHistory;
+        result = userLimits.canAccessHistory;
+        break;
       case 'detailed_info':
-        return userLimits.canAccessDetailedInfo;
+        result = userLimits.canAccessDetailedInfo;
+        break;
       default:
-        return false;
+        result = false;
+    }
+    
+    console.log(`Vérification d'autorisation pour ${actionType}: ${result}`);
+    console.log(`Quotas actuels:`, userQuotas);
+    console.log(`Limites:`, userLimits);
+    
+    return result;
+  };
+  
+  /**
+   * Vérifie l'autorisation de manière asynchrone (pour les vérifications côté serveur)
+   * @param {string} actionType - Type d'action ('scan', 'manual_entry', 'searchName', etc.)
+   * @returns {Promise<boolean>} - True si l'utilisateur est autorisé, sinon False
+   */
+  const checkAuthorization = async (actionType) => {
+    if (!currentUser || !userDetails || !userDetails.id) {
+      return false;
+    }
+    
+    try {
+      const response = await subscriptionService.checkActionAuthorization(
+        userDetails.id,
+        actionType
+      );
+      
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      
+      // Mettre à jour les états avec les données les plus récentes
+      setUserQuotas(response.usage);
+      setUserLimits(response.limits);
+      
+      return response.isAuthorized;
+    } catch (err) {
+      console.error(`Erreur lors de la vérification d'autorisation pour ${actionType}:`, err);
+      return false;
     }
   };
   
@@ -170,16 +169,24 @@ const useSubscriptionPermissions = () => {
    */
   const incrementUsage = (actionType) => {
     setUserQuotas(prev => {
+      let newQuotas;
+      
       switch (actionType) {
         case 'scan':
-          return { ...prev, scanAuto: prev.scanAuto + 1 };
+          newQuotas = { ...prev, scanAuto: prev.scanAuto + 1 };
+          break;
         case 'manual_entry':
-          return { ...prev, scanManual: prev.scanManual + 1 };
+          newQuotas = { ...prev, scanManual: prev.scanManual + 1 };
+          break;
         case 'searchName':
-          return { ...prev, searchName: prev.searchName + 1 };
+          newQuotas = { ...prev, searchName: prev.searchName + 1 };
+          break;
         default:
-          return prev;
+          newQuotas = prev;
       }
+      
+      console.log(`Incrémentation du quota pour ${actionType}:`, newQuotas);
+      return newQuotas;
     });
   };
   
@@ -189,32 +196,7 @@ const useSubscriptionPermissions = () => {
    * @returns {string} - Message d'erreur formaté
    */
   const getQuotaExceededMessage = (actionType) => {
-    let actionName = '';
-    let currentUsage = 0;
-    let maxLimit = 0;
-    
-    switch (actionType) {
-      case 'scan':
-        actionName = 'scans avec l\'appareil photo';
-        currentUsage = userQuotas.scanAuto;
-        maxLimit = userLimits.maxScanAuto;
-        break;
-      case 'manual_entry':
-        actionName = 'recherches par code-barres';
-        currentUsage = userQuotas.scanManual;
-        maxLimit = userLimits.maxScanManual;
-        break;
-      case 'searchName':
-        actionName = 'recherches par nom';
-        currentUsage = userQuotas.searchName;
-        maxLimit = userLimits.maxSearchName;
-        break;
-      default:
-        actionName = 'actions';
-        break;
-    }
-    
-    return `Quota quotidien dépassé: ${currentUsage}/${maxLimit} ${actionName}. Passez à un abonnement supérieur pour plus d'accès.`;
+    return subscriptionService.getActionDeniedMessage(actionType, userQuotas, userLimits);
   };
   
   /**
@@ -227,6 +209,7 @@ const useSubscriptionPermissions = () => {
   
   return {
     isAuthorized,
+    checkAuthorization,
     incrementUsage,
     getQuotaExceededMessage,
     getMaxReviews,
@@ -234,7 +217,7 @@ const useSubscriptionPermissions = () => {
     userLimits,
     loading,
     error,
-    refreshUsage: loadUserUsage
+    refreshUsage: loadUserData
   };
 };
 
