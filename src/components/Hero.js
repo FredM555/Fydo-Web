@@ -1,6 +1,7 @@
 // src/components/Hero.js
 import React from 'react';
 import { ArrowRight, Camera, Star } from 'lucide-react';
+import { Link } from 'react-router-dom'; // Importez Link
 
 const Hero = () => {
   return (
@@ -23,7 +24,11 @@ const Hero = () => {
           </div>
         </div>
         <div className="md:w-1/2 flex justify-center">
-          <div className="relative w-64 h-96 bg-white rounded-3xl shadow-xl p-4 border-8 border-gray-100">
+          {/* Remplacer le div par un Link qui active directement le scanner */}
+          <Link 
+            to="/recherche-filtre?openScanner=true" 
+            className="relative w-64 h-96 bg-white rounded-3xl shadow-xl p-4 border-8 border-gray-100 hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
+          >
             <div className="w-full h-full bg-green-50 rounded-2xl flex items-center justify-center">
               <div className="text-center p-4">
                 <div className="flex justify-center mb-4">
@@ -46,7 +51,7 @@ const Hero = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </section>

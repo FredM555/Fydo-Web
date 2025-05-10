@@ -45,13 +45,16 @@ const ProductSearchEnhanced = () => {
 const [cameraAvailable, setCameraAvailable] = useState(null);
 const [selectedImage, setSelectedImage] = useState(null);
 const [isMobileDevice, setIsMobileDevice] = useState(null);
-
+// Ajoute un état pour suivre la source du code-barres
+const [barcodeSource, setBarcodeSource] = useState('manual_entry');
 
 
   // Ajoutez cette fonction pour gérer l'ouverture de la caméra
 // 3. Remplacez la fonction handleOpenCamera par celle-ci:
 const handleOpenCamera = () => {
-  // Au lieu d'utiliser l'API d'input file, on affiche simplement notre composant BarcodeScanner
+  // Au lieu d'utiliser l'API d'input file, on affiche simplement notre composant
+  setBarcodeSource('scan');
+  //  BarcodeScanner
   setShowScanner(true);
 };
 
@@ -60,7 +63,8 @@ const handleScanComplete = (scannedCode) => {
   setShowScanner(false);
   setBarcode(scannedCode);
   // Lancer automatiquement la recherche avec le code scanné
-  handleFetchProduct(scannedCode);
+  //handleFetchProduct(scannedCode);
+  handleFetchProduct(scannedCode, false, 'scan');
 };
 
 
@@ -144,6 +148,21 @@ const handleScanComplete = (scannedCode) => {
     }
     
     const handleUrlParams = async () => {
+          // Récupérer le paramètre openScanner
+    const openScannerParam = queryParams.get('openScanner');
+    
+    // Vérifier si le scanner doit être ouvert automatiquement
+    if (openScannerParam === 'true') {
+      // Activer l'onglet de code-barres et ouvrir le scanner
+      setActiveTab('barcode');
+      setShowScanner(true);
+      setBarcodeSource('scan');
+      
+      // Nettoyer l'URL pour éviter que le scanner s'ouvre à chaque rendu
+      navigate('/recherche-filtre', { replace: true });
+      return; // Sortir de la fonction pour éviter d'exécuter les autres traitements
+    }
+      
       // Si un code barre est présent dans l'URL, faire une recherche automatique
       if (urlBarcode) {
         setActiveTab('barcode');
@@ -162,8 +181,9 @@ const handleScanComplete = (scannedCode) => {
   }, [urlBarcode, urlSearchQuery]); // Se déclenche uniquement lors du changement des paramètres d'URL
 
   // Recherche par code-barres
-  const handleFetchProduct = async (barcodeToFetch = null, isInitialLoad = false) => {
+  const handleFetchProduct = async (barcodeToFetch = null, isInitialLoad = false, source = null) => {
     const codeToSearch = barcodeToFetch || barcode;
+    const interactionSource = source || barcodeSource;
     
     if (!codeToSearch.trim()) {
       setError('Veuillez saisir un code-barres');
@@ -186,7 +206,8 @@ const handleScanComplete = (scannedCode) => {
         
         // Ajouter à l'historique seulement si ce n'est pas le chargement initial
         if (!isInitialLoad) {
-          recordProductView(result.product, 'manual_entry');
+          //recordProductView(result.product, 'manual_entry');
+          recordProductView(result.product, interactionSource);
         }
         
         // Pour le débogage, vérifier les champs disponibles
@@ -357,6 +378,7 @@ const handleScanComplete = (scannedCode) => {
   // Gestionnaire d'événement pour la touche Entrée dans le champ code-barres
   const handleBarcodeKeyDown = (e) => {
     if (e.key === 'Enter') {
+      setBarcodeSource('manual_entry');
       handleFetchProduct();
     }
   };
@@ -468,11 +490,11 @@ const handleScanComplete = (scannedCode) => {
   <>
     {showScanner ? (
       <div className="mb-6">
-        <BarcodeScanner onScanComplete={handleScanComplete} />
-        <button
-          className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-          onClick={() => setShowScanner(false)}
-        >
+        <BarcodeScanner onScanComplete={handleScanComplete} autoStart={true} />
+          <button
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors block mx-auto"
+            onClick={() => setShowScanner(false)}
+          >
           Annuler le scan
         </button>
       </div>
@@ -498,7 +520,10 @@ const handleScanComplete = (scannedCode) => {
         
         <button
           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center justify-center min-w-[100px]"
-          onClick={() => handleFetchProduct()}
+          onClick={() => {
+              setBarcodeSource('manual_entry');
+              handleFetchProduct();}
+            }
           disabled={loading}
         >
           {loading ? (

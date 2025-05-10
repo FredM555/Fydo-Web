@@ -1,40 +1,49 @@
-// src/components/BarcodeScanner.js
+// src/components/BarcodeScanner.js - version corrigée pour l'autostart
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
-import Quagga from 'quagga'; // Assurez-vous d'installer cette dépendance
+import Quagga from 'quagga';
 
-const BarcodeScanner = ({ onScanComplete }) => {
-  const [isScanning, setIsScanning] = useState(false);
+const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
+  const [isScanning, setIsScanning] = useState(autoStart); // Toujours initialisé à false
   const [hasPermission, setHasPermission] = useState(null);
   const scannerRef = useRef(null);
+  const autoStartAttempted = useRef(false); // Pour éviter de multiples tentatives
   
   // Activation du scanner avec Quagga
-const startScanner = () => {
-  if (!scannerRef.current) {
-    console.error("Élément DOM manquant pour le scanner");
-    return;
-  }
+  const startScanner = () => {
+    if (!scannerRef.current) {
+      console.error("Élément DOM manquant pour le scanner");
+      return;
+    }
+    
+    console.log("Tentative d'initialisation de Quagga...");
+    
     Quagga.init({
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: scannerRef.current,
-        constraints: {
-          facingMode: "environment", // Caméra arrière
-        },
-      },
+inputStream: {
+  name: "Live",
+  type: "LiveStream",
+  target: scannerRef.current,
+  constraints: {
+    facingMode: "environment",
+  },
+  area: { // se concentre sur le centre
+    top: "25%",    // Y-start
+    right: "75%",  // X-end
+    left: "25%",
+    bottom: "75%"  // Y-end
+  },
+  singleChannel: false, // true: grayscale, false: color
+  frequency: 5 // en ms ; plus haut = moins de scans/secondes
+},
       locator: {
-        patchSize: "medium",
-        halfSample: true,
+        patchSize: "large",
+        halfSample: false,
       },
       numOfWorkers: navigator.hardwareConcurrency || 4,
       decoder: {
-        readers: [
-          "ean_reader",
-          "ean_8_reader",
-          "code_39_reader",
-          "code_128_reader"
-        ],
+        decoder: {
+          readers: ["ean_reader"], // ou "ean_13_reader", alias de ean
+        },
       },
       locate: true,
     }, function(err) {
@@ -76,25 +85,33 @@ const startScanner = () => {
     }
   };
   
-  // Nettoyage lors du démontage du composant
-useEffect(() => {
-  return () => {
-    if (isScanning) {
-      stopScanner();
-    }
-  };
-}, []);
 
-useEffect(() => {
-  if (isScanning) {
-    const timeout = setTimeout(() => {
-      if (scannerRef.current) {
-        startScanner();
+  
+  // Effet pour démarrer/arrêter le scanner quand isScanning change
+  useEffect(() => {
+    if (isScanning) {
+      console.log("isScanning est true, démarrage du scanner...");
+      const timeout = setTimeout(() => {
+        if (scannerRef.current) {
+          startScanner();
+        }
+      }, 100);
+      return () => clearTimeout(timeout);
+    } else {
+      // Si nous passons à isScanning = false, on s'assure d'arrêter Quagga
+      Quagga.stop();
+    }
+  }, [isScanning]);
+  
+  // Nettoyage lors du démontage du composant
+  useEffect(() => {
+    return () => {
+      console.log("Démontage du composant BarcodeScanner");
+      if (isScanning) {
+        Quagga.stop();
       }
-    }, 100); // petite attente pour que le DOM soit prêt
-    return () => clearTimeout(timeout);
-  }
-}, [isScanning]);
+    };
+  }, []);
   
   return (
     <div className="w-full">
@@ -130,12 +147,7 @@ useEffect(() => {
           
           {/* Boutons de contrôle */}
           <div className="mt-4 flex justify-center">
-            <button
-              onClick={stopScanner}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
-            >
-              <X size={20} className="mr-1" /> Annuler
-            </button>
+
           </div>
         </div>
       )}
