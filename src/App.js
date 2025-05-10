@@ -1,6 +1,7 @@
 // src/App.js - Mise à jour pour ajouter la route vers la validation des avis
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login, SignUp, UserProfile, ChangePassword } from './components/login';
 import Header from './components/Header';
@@ -51,6 +52,15 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-green-50 flex flex-col">
+          <Helmet>
+            <title>Fydo - Avis Produits</title>
+            <link 
+              rel="icon" 
+              href="/images/Fydo-icone.png"
+              type="image/png" 
+            />
+          </Helmet>
+          
           <Header />
           {/* Augmenter le padding-top pour créer plus d'espace entre le header et le contenu */}
           <div className="pt-10"> {/* Augmenté de 14 à 20 */}

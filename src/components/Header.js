@@ -5,6 +5,7 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { User, LogOut, ChevronDown, Clock, Star, MessageSquare, Heart, Award, Crown, Menu, X as XIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import fydoLogo from '../assets/images/Fydo-logo.png';
 
 
 const Header = () => {
@@ -91,11 +92,11 @@ const Header = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
             {/* Remplacer le texte et le SVG par l'image du logo */}
-            <img 
-              src="/images/fydo-logo.png" 
-              alt="Fydo Logo" 
-              className="h-10 md:h-12" 
-            />
+              <img 
+                src={fydoLogo} 
+                alt="Fydo Logo" 
+                className="h-10 md:h-12" 
+              />
           </Link>
         </div>
 
