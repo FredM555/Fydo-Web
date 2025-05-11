@@ -214,10 +214,13 @@ const AdminPanel = () => {
           .from('user_subscriptions')
           .update({ is_active: false })
           .eq('user_id', selectedUserId)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .eq('payment_method' , 'offert');
       } catch (err) {
         console.log("Note: Aucun abonnement actif à désactiver ou erreur:", err.message);
       }
+
+      
       
       // Calculer les dates d'abonnement
       const startDate = new Date();
@@ -238,7 +241,7 @@ const AdminPanel = () => {
             end_date: endDate.toISOString(),
             is_active: true,
             payment_status: 'completed',
-            payment_method: 'admin',
+            payment_method: 'offert',
             is_auto_renew: true
           }
         ])
