@@ -233,30 +233,31 @@ export const addProductReview = async (
     
     const averageRating = totalWeight > 0 ? Number((weightedSum / totalWeight).toFixed(2)) : 0;
     
-    // Insérer l'avis avec les nouveaux champs
+    // Préparer l'objet d'avis à insérer en fonction des colonnes présentes dans le schéma
+    const reviewObject = {
+      user_id: userId,
+      product_code: productCode,
+      comment: comment,
+      receipt_id: receiptId,
+      is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
+      status: 'pending', // Les avis sont en attente de modération par défaut
+      average_rating: averageRating,
+      taste_rating: tasteRating,
+      quantity_rating: quantityRating,
+      price_rating: priceRating,
+      authorize_receipt_sharing: authorizeSharing
+    };
+    
+    // Ajouter les champs d'information d'achat s'ils existent
+    if (price) reviewObject.purchase_price = price;
+    if (date) reviewObject.purchase_date = date;
+    if (storeName) reviewObject.store_name = storeName;
+    if (location) reviewObject.purchase_location = `(${location.lat},${location.lng})`;
+    
+    // Insérer l'avis
     const { data: newReview, error: reviewError } = await supabase
       .from('product_reviews')
-      .insert([
-        {
-          user_id: userId,
-          product_code: productCode,
-          comment: comment,
-          receipt_id: receiptId,
-          is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
-          status: 'pending', // Les avis sont en attente de modération par défaut
-          // Nouveaux champs pour les notes spécifiques
-          average_rating: averageRating,
-          taste_rating: tasteRating,
-          quantity_rating: quantityRating,
-          price_rating: priceRating,
-          // Informations d'achat
-          authorize_receipt_sharing: authorizeSharing,
-          purchase_price: price,
-          purchase_date: date,
-          purchase_location: location ? `(${location.lat},${location.lng})` : null,
-          store_name: storeName
-        }
-      ])
+      .insert([reviewObject])
       .select()
       .single();
       
@@ -471,7 +472,6 @@ export const checkUserLike = async (userId, reviewId) => {
  * @param {number} offset - Décalage pour la pagination
  * @returns {Promise<object>} - Résultat avec les avis
  */
-// Dans reviewService.js - Version améliorée de getUserReviews avec images
 export const getUserReviews = async (userId, limit = 10, offset = 0) => {
   try {
     if (!userId) {
@@ -572,7 +572,6 @@ export const getUserReviews = async (userId, limit = 10, offset = 0) => {
     return { success: false, error: error.message };
   }
 };
-
 
 /**
  * Obtient l'image du ticket de caisse (version modifiée pour prendre en compte l'utilisateur propriétaire)

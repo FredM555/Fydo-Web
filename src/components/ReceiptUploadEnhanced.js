@@ -1,8 +1,9 @@
 // src/components/ReceiptUploadEnhanced.js
 import React, { useState, useRef } from 'react';
-import { Upload, X, Check, AlertCircle, FileText, Camera } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, FileText, Camera, Calendar, ShoppingBag, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadReceipt } from '../services/storageService';
+import { formatDate, formatPrice } from '../utils/formatters';
 
 const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
   const { currentUser, userDetails } = useAuth();
@@ -13,6 +14,8 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiData, setAiData] = useState(null);
   const fileInputRef = useRef(null);
   
   // Gestion de la sélection du fichier
@@ -65,6 +68,12 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
     setUploading(true);
     setError(null);
     setProgress(0);
+    setAiProcessing(true);
+    
+    // Simulation de progression pendant l'upload
+    const progressInterval = setInterval(() => {
+      setProgress(prev => Math.min(prev + 5, 80));
+    }, 200);
     
     try {
       // Télécharger vers Firebase Storage et enregistrer dans Supabase
@@ -75,19 +84,38 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
         productCode
       );
       
+      clearInterval(progressInterval);
+      
       if (!result.success) {
         throw new Error(result.error || "Le téléchargement a échoué. Veuillez réessayer.");
       }
       
-      setUploadSuccess(true);
+      setProgress(90);
       
-      // Appeler le callback si fourni
-      if (onUploadComplete) {
-        onUploadComplete(result.receipt, result.url);
+      // Si Claude a extrait des données, les stocker et les afficher
+      if (result.aiData) {
+        console.log("Données extraites par Claude:", result.aiData);
+        setAiData(result.aiData);
       }
+      
+      // Terminer le processus avec succès
+      setTimeout(() => {
+        setProgress(100);
+        setAiProcessing(false);
+        setUploadSuccess(true);
+        
+        // Appeler le callback si fourni, en transmettant les données extraites
+        if (onUploadComplete) {
+          onUploadComplete(result.receipt, result.url, result.aiData);
+        }
+      }, 500);
+      
     } catch (err) {
+      clearInterval(progressInterval);
       console.error("Erreur lors du téléchargement:", err);
       setError(err.message || "Le téléchargement a échoué. Veuillez réessayer.");
+      setProgress(0);
+      setAiProcessing(false);
     } finally {
       setUploading(false);
     }
@@ -101,6 +129,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
     setUploadSuccess(false);
     setError(null);
     setProgress(0);
+    setAiData(null);
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -209,15 +238,50 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
               )}
             </div>
             
-            {uploading && (
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-green-600 h-2.5 rounded-full transition-all" 
-                  style={{ width: `${progress}%` }}
-                ></div>
+            {(uploading || aiProcessing) && (
+              <div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-green-600 h-2.5 rounded-full transition-all" 
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
                 <p className="text-xs text-gray-500 text-center mt-1">
-                  Téléchargement en cours ({progress}%)...
+                  {progress < 85 
+                    ? "Téléchargement en cours..." 
+                    : "Analyse du ticket avec IA..."}
                 </p>
+              </div>
+            )}
+            
+            {/* Affichage des données extraites par l'IA */}
+            {uploadSuccess && aiData && (
+              <div className="mt-4 bg-green-50 p-3 rounded-lg">
+                <h3 className="text-sm font-medium text-green-800 mb-2">
+                  Informations extraites du ticket :
+                </h3>
+                <div className="space-y-2">
+                  {aiData.date && (
+                    <div className="flex items-center text-sm">
+                      <Calendar size={16} className="mr-2 text-green-600" />
+                      <span>Date d'achat : <strong>{formatDate(aiData.date)}</strong></span>
+                    </div>
+                  )}
+                  
+                  {aiData.store && (
+                    <div className="flex items-center text-sm">
+                      <ShoppingBag size={16} className="mr-2 text-green-600" />
+                      <span>Magasin : <strong>{aiData.store}</strong></span>
+                    </div>
+                  )}
+                  
+                  {aiData.price && (
+                    <div className="flex items-center text-sm">
+                      <DollarSign size={16} className="mr-2 text-green-600" />
+                      <span>Prix : <strong>{formatPrice(aiData.price)}</strong></span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
@@ -227,7 +291,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
                   type="button"
                   onClick={handleReset}
                   className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  disabled={uploading}
+                  disabled={uploading || aiProcessing}
                 >
                   Annuler
                 </button>
@@ -236,17 +300,17 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
                   type="button"
                   onClick={handleUpload}
                   className={`flex-1 flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
-                    uploading ? 'opacity-70 cursor-not-allowed' : ''
+                    (uploading || aiProcessing) ? 'opacity-70 cursor-not-allowed' : ''
                   }`}
-                  disabled={uploading}
+                  disabled={uploading || aiProcessing}
                 >
-                  {uploading ? (
+                  {(uploading || aiProcessing) ? (
                     <>
                       <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Envoi en cours...
+                      {progress < 85 ? "Envoi en cours..." : "Analyse en cours..."}
                     </>
                   ) : (
                     <>
@@ -263,7 +327,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
                   <span className="font-medium">Ticket de caisse validé !</span>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Votre ticket de caisse a bien été enregistré. Vous pouvez maintenant donner votre avis sur le produit.
+                  Votre ticket de caisse a bien été enregistré et analysé. Vous pouvez maintenant donner votre avis sur le produit.
                 </p>
                 <button
                   type="button"
