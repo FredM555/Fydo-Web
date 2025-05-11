@@ -97,10 +97,11 @@ const useSubscriptionPermissions = () => {
     
     let result = false;
     
-
-    
     switch (actionType) {
       case 'scan':
+        result = userQuotas.scanAuto < userLimits.maxScanAuto;
+        break;
+      case 'scan_barcode':
         result = userQuotas.scanAuto < userLimits.maxScanAuto;
         break;
       case 'manual_search':
