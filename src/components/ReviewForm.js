@@ -7,6 +7,7 @@ import {
   getReviewCriterias, 
   addProductReview
 } from '../services/reviewService';
+import { formatDate, formatPrice } from '../utils/formatters';
 
 /**
  * Composant de formulaire pour créer un avis
@@ -39,8 +40,11 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
   const [storeName, setStoreName] = useState('');
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [location, setLocation] = useState(null);
-  const [locationError, setLocationError] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // État pour les données extraites par Claude AI
+  const [aiData, setAiData] = useState(null);
+  const [aiDataAvailable, setAiDataAvailable] = useState(false);
   
   // Chargement des critères d'évaluation
   useEffect(() => {
@@ -66,8 +70,33 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
     fetchReviewCriterias();
   }, []);
   
+  // Gestion de la géolocalisation
+  useEffect(() => {
+    if (useCurrentLocation) {
+      setLocationLoading(true);
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setLocationLoading(false);
+        },
+        (error) => {
+          console.error("Erreur de géolocalisation:", error);
+          setError("Impossible d'obtenir votre position. Veuillez autoriser l'accès à votre localisation.");
+          setLocationLoading(false);
+          setUseCurrentLocation(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    } else if (!useCurrentLocation) {
+      setLocation(null);
+    }
+  }, [useCurrentLocation]);
+  
   // Calcul de la note moyenne en temps réel (weighted average)
-  // Ce calcul simule ce qui sera fait au niveau de la base de données
   const averageRating = useMemo(() => {
     if (!criterias.length) return 0;
     
@@ -82,39 +111,10 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
       }
     });
     
-    // Si aucune note n'a été donnée, retourner 0
     if (totalWeight === 0) return 0;
     
-    // Calculer la moyenne pondérée et arrondir à 1 décimale (comme spécifié dans la base de données - numeric(3,1))
     return Math.round((totalWeightedRating / totalWeight) * 10) / 10;
   }, [ratings, criterias]);
-  
-  // Gestion de la géolocalisation
-  useEffect(() => {
-    if (useCurrentLocation) {
-      setLocationLoading(true);
-      setLocationError(null);
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setLocationLoading(false);
-        },
-        (error) => {
-          console.error("Erreur de géolocalisation:", error);
-          setLocationError("Impossible d'obtenir votre position. Veuillez autoriser l'accès à votre localisation.");
-          setLocationLoading(false);
-          setUseCurrentLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
-    } else if (!useCurrentLocation) {
-      setLocation(null);
-    }
-  }, [useCurrentLocation]);
   
   // Gestion de la notation par critère
   const handleRatingChange = (criteriaId, value) => {
@@ -133,9 +133,31 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
   };
   
   // Gestion du upload du ticket de caisse
-  const handleReceiptUpload = (receipt, url) => {
+  const handleReceiptUpload = (receipt, url, extractedData) => {
     setReceiptUploaded(true);
     setReceiptId(receipt.id);
+    
+    // Stocker les données extraites par Claude AI localement
+    if (extractedData) {
+      console.log("Données extraites par Claude AI:", extractedData);
+      setAiData(extractedData);
+      
+      // Mettre à jour les champs du formulaire avec les données extraites
+      if (extractedData.date) {
+        setPurchaseDate(extractedData.date);
+      }
+      
+      if (extractedData.store) {
+        setStoreName(extractedData.store);
+      }
+      
+      if (extractedData.price) {
+        setPurchasePrice(extractedData.price.toString());
+      }
+      
+      // Indiquer que les données AI sont disponibles
+      setAiDataAvailable(true);
+    }
   };
   
   // Gestion de l'envoi de l'avis
@@ -159,7 +181,7 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
     setError(null);
     
     try {
-      // Préparer les informations d'achat
+      // Préparer les informations d'achat (obtenues de Claude, mais non stockées dans receipts)
       const purchaseInfo = {
         price: purchasePrice ? parseFloat(purchasePrice) : null,
         date: purchaseDate || null,
@@ -168,7 +190,7 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
         authorizeSharing: authorizeReceiptSharing
       };
       
-      // Envoyer l'avis - pas besoin d'envoyer la note moyenne car elle sera calculée côté serveur
+      // Envoyer l'avis et les informations extraites qui seront stockées dans la table product_reviews
       const { success, error } = await addProductReview(
         userDetails.id,
         product.code,
@@ -318,100 +340,6 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
             ></textarea>
           </div>
           
-          {/* Informations d'achat */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-gray-800 mb-3">Informations d'achat</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {/* Date d'achat */}
-              <div>
-                <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="purchaseDate">
-                  <Calendar size={14} className="inline mr-1" />
-                  Date d'achat
-                </label>
-                <input
-                  type="date"
-                  id="purchaseDate"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  max={new Date().toISOString().split('T')[0]} // Empêcher les dates futures
-                />
-              </div>
-              
-              {/* Prix d'achat */}
-              <div>
-                <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="purchasePrice">
-                  <DollarSign size={14} className="inline mr-1" />
-                  Prix d'achat
-                </label>
-                <input
-                  type="number"
-                  id="purchasePrice"
-                  step="0.01"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="0.00"
-                  value={purchasePrice}
-                  onChange={(e) => setPurchasePrice(e.target.value)}
-                />
-              </div>
-              
-              {/* Nom du magasin */}
-              <div>
-                <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="storeName">
-                  <ShoppingBag size={14} className="inline mr-1" />
-                  Nom du magasin
-                </label>
-                <input
-                  type="text"
-                  id="storeName"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="ex: Carrefour, Auchan..."
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                />
-              </div>
-              
-              {/* Localisation */}
-              <div>
-                <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="location">
-                  <MapPin size={14} className="inline mr-1" />
-                  Localisation
-                </label>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setUseCurrentLocation(!useCurrentLocation)}
-                    className={`flex items-center px-3 py-2 rounded-md border ${
-                      useCurrentLocation 
-                        ? 'bg-green-100 border-green-300 text-green-700' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <MapPin size={16} className="mr-1" />
-                    {useCurrentLocation 
-                      ? locationLoading 
-                        ? 'Chargement...' 
-                        : location 
-                          ? 'Position actuelle' 
-                          : 'Utiliser ma position'
-                      : 'Utiliser ma position'
-                    }
-                  </button>
-                </div>
-                {locationError && (
-                  <p className="text-xs text-red-500 mt-1">{locationError}</p>
-                )}
-                {location && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Position enregistrée: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-          
           {/* Ticket de caisse */}
           {!receiptUploaded ? (
             <div className="mb-6">
@@ -422,6 +350,7 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
               <ReceiptUploadEnhanced 
                 onUploadComplete={handleReceiptUpload} 
                 productCode={product.code}
+                productName={product.product_name}
               />
             </div>
           ) : (
@@ -441,7 +370,7 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
                   onChange={(e) => setAuthorizeReceiptSharing(e.target.checked)}
                 />
                 <label htmlFor="authorizeSharing" className="text-sm text-gray-700">
-                  J'autorise le partage de mon ticket de caisse avec les autres utilisateurs
+                  J'autorise le partage anonymisé de mon ticket de caisse
                 </label>
               </div>
               <p className="text-xs text-gray-500 mt-1">
@@ -450,6 +379,80 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
               </p>
             </div>
           )}
+          
+          {/* Informations d'achat - N'apparaissent qu'après l'analyse AI */}
+          {aiDataAvailable && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-800 mb-3">Informations d'achat extraites</h4>
+              
+              <div className="space-y-4">
+                {/* Date d'achat */}
+                {purchaseDate && (
+                  <div className="flex items-center">
+                    <Calendar size={16} className="mr-2 text-green-600" />
+                    <span className="text-gray-700">Date d'achat : <strong>{formatDate(purchaseDate)}</strong></span>
+                  </div>
+                )}
+                
+                {/* Prix d'achat */}
+                {purchasePrice && (
+                  <div className="flex items-center">
+                    <DollarSign size={16} className="mr-2 text-green-600" />
+                    <span className="text-gray-700">Prix d'achat : <strong>{formatPrice(parseFloat(purchasePrice))}</strong></span>
+                  </div>
+                )}
+                
+                {/* Nom du magasin */}
+                {storeName && (
+                  <div className="flex items-center">
+                    <ShoppingBag size={16} className="mr-2 text-green-600" />
+                    <span className="text-gray-700">Magasin : <strong>{storeName}</strong></span>
+                  </div>
+                )}
+                
+                {/* Localisation */}
+                {location && (
+                  <div className="flex items-center">
+                    <MapPin size={16} className="mr-2 text-green-600" />
+                    <span className="text-gray-700">Position utilisée : <strong>Votre position actuelle</strong></span>
+                  </div>
+                )}
+                
+                {/* Message informatif */}
+                <p className="text-xs text-gray-500 italic mt-1">
+                  Ces informations ont été extraites automatiquement de votre ticket de caisse par IA.
+                </p>
+              </div>
+              
+              {/* Bouton d'utilisation de la position actuelle si nécessaire */}
+              {!location && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setUseCurrentLocation(!useCurrentLocation)}
+                    className={`flex items-center px-3 py-2 rounded-md border text-sm ${
+                      useCurrentLocation 
+                        ? 'bg-green-100 border-green-300 text-green-700' 
+                        : 'bg-gray-100 border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <MapPin size={16} className="mr-1" />
+                    {useCurrentLocation 
+                      ? locationLoading 
+                        ? 'Chargement...' 
+                        : 'Position actuelle' 
+                      : 'Ajouter ma position'
+                    }
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Ces champs sont masqués car nous utilisons maintenant les informations extraites */}
+          <input type="hidden" name="purchaseDate" value={purchaseDate} />
+          <input type="hidden" name="purchasePrice" value={purchasePrice} />
+          <input type="hidden" name="storeName" value={storeName} />
           
           {error && (
             <div className="mb-6 p-3 bg-red-50 text-red-700 rounded-md flex items-start">
@@ -471,14 +474,18 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
               className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300 flex items-center ${
                 loading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
-              disabled={loading}
+              disabled={loading || !receiptUploaded}
             >
               {loading ? (
                 <>
                   <Loader size={18} className="mr-2 animate-spin" />
                   Envoi en cours...
                 </>
-              ) : 'Publier mon avis'}
+              ) : !receiptUploaded ? (
+                'Téléchargez un ticket de caisse pour continuer'
+              ) : (
+                'Publier mon avis'
+              )}
             </button>
           </div>
         </form>
