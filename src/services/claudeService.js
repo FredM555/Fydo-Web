@@ -8,7 +8,7 @@ import { ref, getDownloadURL } from 'firebase/storage';
  */
 
 // Récupération explicite de la clé API et déboggage des variables d'environnement
-const CLAUDE_API_KEY = process.env.local.REACT_APP_CLAUDE_API_KEY;
+const CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY;
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 
 /**
