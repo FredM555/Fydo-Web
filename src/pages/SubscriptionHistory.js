@@ -11,7 +11,9 @@ import {
   Camera,
   Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Gift,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSubscriptionHistory } from '../services/subscriptionService';
@@ -39,12 +41,23 @@ const SubscriptionHistory = () => {
         const historyData = await getSubscriptionHistory(userDetails.id);
         setHistory(historyData);
         
-        // Initialiser l'état d'expansion avec le plus récent ouvert par défaut
-        if (historyData.length > 0) {
-          const expandMap = {};
-          expandMap[historyData[0].id] = true;
-          setExpandedItems(expandMap);
+        // Initialiser avec tous les éléments fermés
+        const expandMap = {};
+        
+        // Trouver les abonnements actifs
+        const now = new Date();
+        const activeSubscriptions = historyData.filter(sub => 
+          sub.is_active && new Date(sub.end_date) > now
+        );
+        
+        // N'ouvrir que les abonnements actifs (s'il y en a)
+        if (activeSubscriptions.length > 0) {
+          activeSubscriptions.forEach(sub => {
+            expandMap[sub.id] = true;
+          });
         }
+        
+        setExpandedItems(expandMap);
       } catch (err) {
         console.error("Erreur lors de la récupération de l'historique:", err.message);
         setError("Impossible de charger l'historique des abonnements. Veuillez réessayer plus tard.");
@@ -96,11 +109,21 @@ const SubscriptionHistory = () => {
   };
 
   // Fonction pour afficher le statut du paiement
-  const renderPaymentStatus = (status) => {
+  const renderPaymentStatus = (status, method) => {
+    if (method === 'offert') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 status-badge">
+          <Gift size={12} className="mr-1" />
+          Offert
+        </span>
+      );
+    }
+    
     switch (status) {
       case 'completed':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 status-badge">
+            <DollarSign size={12} className="mr-1" />
             Payé
           </span>
         );
@@ -125,18 +148,88 @@ const SubscriptionHistory = () => {
     }
   };
 
+  // Fonction pour déterminer la couleur de la bordure en fonction du type d'abonnement
+  const getBorderColorClass = (subscription, isActive) => {
+    if (!isActive) return '';
+    
+    if (subscription.payment_method === 'offert') {
+      return 'border-l-4 border-purple-500';
+    } else {
+      return 'border-l-4 border-green-500';
+    }
+  };
+
   // Fonction pour afficher une caractéristique avec valeur
-  const renderFeatureWithValue = (label, value, icon = null) => {
+  const renderFeatureWithValue = (label, value, icon = null, isOffered = false) => {
     const displayValue = typeof value === 'number' && value >= 9000 ? 'Illimité' : value;
+    const textColor = isOffered ? 'text-purple-600' : 'text-green-600';
     
     return (
       <div className="flex items-center py-1">
-        {icon || <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />}
+        {icon || <CheckCircle className={`h-4 w-4 ${isOffered ? 'text-purple-500' : 'text-green-500'} mr-2 flex-shrink-0`} />}
         <span className="text-gray-700 text-sm">
-          {label}: <span className="font-medium text-green-600">{displayValue}</span>
+          {label}: <span className={`font-medium ${textColor}`}>{displayValue}</span>
         </span>
       </div>
     );
+  };
+
+  // Rendre les informations de renouvellement automatique
+  const renderAutoRenewal = (subscription) => {
+    if (subscription.payment_method === 'offert') {
+      return (
+        <div className="flex items-center text-sm text-gray-500">
+          <span>Renouvellement automatique: </span>
+          <span className="ml-1 text-gray-500">Non applicable</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex items-center text-sm text-gray-600">
+          <div className={subscription.is_auto_renew ? 'text-green-600' : 'text-gray-600'}>
+            {subscription.is_auto_renew 
+              ? 'Renouvellement automatique activé' 
+              : 'Sans renouvellement automatique'}
+          </div>
+        </div>
+      );
+    }
+  };
+
+  // Fonction pour afficher le prix selon le type d'abonnement
+  const renderPrice = (subscription) => {
+    // Vérifier si l'abonnement est actif
+    const now = new Date();
+    const endDate = new Date(subscription.end_date);
+    const isActive = subscription.is_active && now <= endDate;
+    
+    if (subscription.payment_method === 'offert') {
+      return (
+        <div className="text-2xl font-bold text-purple-700 subscription-price price-highlight">
+          <span className="line-through text-purple-400">{formatPrice(subscription.price || (
+            subscription.subscription_plans?.price_monthly || 0
+          ))}</span>
+          <span className="ml-2 text-sm font-normal">Offert</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="text-2xl font-bold text-green-700 subscription-price price-highlight">
+          {formatPrice(subscription.price || (
+            subscription.subscription_plans?.price_monthly || 0
+          ))}
+        </div>
+      );
+    }
+  };
+
+  // Fonction pour déterminer l'icône à utiliser
+  const getSubscriptionIcon = (subscription) => {
+    if (subscription.payment_method === 'offert') {
+      return <Gift className="mr-1.5 h-4 w-4 text-purple-500" />;
+    } else {
+      return <CreditCard className="mr-1.5 h-4 w-4 text-gray-400" />;
+    }
   };
 
   return (
@@ -178,122 +271,141 @@ const SubscriptionHistory = () => {
       ) : (
         <div className="subscription-fade-in">
           <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
-            {history.map((subscription, index) => (
-              <li key={subscription.id} className={`bg-white subscription-card ${index === 0 ? 'border-l-4 border-green-500' : ''}`}>
-                {/* En-tête toujours visible avec prix mis en évidence */}
-                <div 
-                  className="p-4 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => toggleExpand(subscription.id)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      {/* Partie supérieure avec nom du plan et badge de statut */}
-                      <div className="flex items-center mb-1">
-                        <h4 className="text-lg font-semibold text-gray-900 mr-2">
-                          {subscription.subscription_plans?.name || 'Plan inconnu'}
-                        </h4>
-                        {renderStatus(subscription)}
-                        <div className="ml-auto sm:hidden">
+            {history.map((subscription, index) => {
+              const isOffered = subscription.payment_method === 'offert';
+              const bgHoverClass = isOffered ? 'hover:bg-purple-50' : 'hover:bg-gray-50';
+              const headerBgClass = isOffered ? 'bg-purple-50' : 'bg-white';
+              const detailsBgClass = isOffered ? 'bg-purple-50' : 'bg-gray-50';
+              
+              // Vérifier si l'abonnement est actif
+              const now = new Date();
+              const endDate = new Date(subscription.end_date);
+              const isActive = subscription.is_active && now <= endDate;
+              
+              // Appliquer un style spécial pour les abonnements actifs
+              const activeCardClass = isActive 
+                ? `shadow-md ${isOffered ? 'ring-2 ring-purple-400' : 'ring-2 ring-green-400'}`
+                : 'opacity-80';
+              
+              return (
+                <li key={subscription.id} className={`bg-white subscription-card ${getBorderColorClass(subscription, isActive)} ${activeCardClass} ${index > 0 ? 'mt-4' : ''}`}>
+                  {/* En-tête toujours visible avec prix mis en évidence */}
+                  <div 
+                    className={`p-4 ${bgHoverClass} cursor-pointer ${headerBgClass} ${isActive ? 'font-medium' : ''}`}
+                    onClick={() => toggleExpand(subscription.id)}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        {/* Partie supérieure avec nom du plan et badge de statut */}
+                        <div className="flex items-center mb-1">
+                          <h4 className={`text-lg font-semibold ${isActive ? 'text-gray-900' : 'text-gray-700'} mr-2`}>
+                            {subscription.subscription_plans?.name || 'Plan inconnu'}
+                          </h4>
+                          {renderStatus(subscription)}
+                          <div className="ml-auto sm:hidden">
+                            {expandedItems[subscription.id] ? 
+                              <ChevronUp size={18} className="chevron-toggle expanded" /> : 
+                              <ChevronDown size={18} className="chevron-toggle" />
+                            }
+                          </div>
+                        </div>
+                        
+                        {/* Description courte du plan */}
+                        <p className={`text-sm ${isActive ? 'text-gray-600' : 'text-gray-500'} mb-2 pr-6 truncate-2-lines`}>
+                          {subscription.subscription_plans?.description || 'Description non disponible'}
+                        </p>
+                        
+                        {/* Période d'abonnement, visible même sans expansion */}
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="mr-1.5 h-4 w-4 text-gray-400" />
+                          <span className="truncate">
+                            Du {formatDate(subscription.start_date)} au {formatDate(subscription.end_date)}
+                          </span>
+                        </div>
+                        
+                        {/* Type d'abonnement */}
+                        <div className="flex items-center text-sm mt-1">
+                          {getSubscriptionIcon(subscription)}
+                          {renderPaymentStatus(subscription.payment_status, subscription.payment_method)}
+                          
+                          {/* Badge "actif" si l'abonnement est en cours */}
+                          {isActive && (
+                            <span className={`ml-3 px-2 py-0.5 rounded text-xs font-medium ${
+                              isOffered ? 'bg-purple-200 text-purple-800' : 'bg-green-200 text-green-800'
+                            }`}>
+                              Abonnement en cours
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Prix mis en évidence à droite */}
+                      <div className="mt-3 sm:mt-0 sm:ml-6 flex flex-row sm:flex-col items-center sm:items-end justify-between">
+                        {renderPrice(subscription)}
+                        <div className="hidden sm:flex">
                           {expandedItems[subscription.id] ? 
                             <ChevronUp size={18} className="chevron-toggle expanded" /> : 
                             <ChevronDown size={18} className="chevron-toggle" />
                           }
                         </div>
                       </div>
-                      
-                      {/* Description courte du plan */}
-                      <p className="text-sm text-gray-500 mb-2 pr-6 truncate-2-lines">
-                        {subscription.subscription_plans?.description || 'Description non disponible'}
-                      </p>
-                      
-                      {/* Période d'abonnement, visible même sans expansion */}
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Clock className="mr-1.5 h-4 w-4 text-gray-400" />
-                        <span className="truncate">
-                          Du {formatDate(subscription.start_date)} au {formatDate(subscription.end_date)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Prix mis en évidence à droite */}
-                    <div className="mt-3 sm:mt-0 sm:ml-6 flex flex-row sm:flex-col items-center sm:items-end justify-between">
-                      <div className="text-2xl font-bold text-green-700 subscription-price price-highlight">
-                        {formatPrice(subscription.price || (
-                          subscription.subscription_plans?.price_monthly || 0
-                        ))}
-                      </div>
-                      <div className="hidden sm:flex">
-                        {expandedItems[subscription.id] ? 
-                          <ChevronUp size={18} className="chevron-toggle expanded" /> : 
-                          <ChevronDown size={18} className="chevron-toggle" />
-                        }
-                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Partie dépliable avec les détails */}
-                {expandedItems[subscription.id] && (
-                  <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100 subscription-details">
-                    {/* Caractéristiques du plan */}
-                    <div className="mt-3 p-3 bg-white rounded-md shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 subscription-info-grid">
-                      {subscription.subscription_plans?.max_scan_auto && (
-                        renderFeatureWithValue(
-                          "Scans par jour", 
-                          subscription.subscription_plans.max_scan_auto,
-                          <Camera className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        )
-                      )}
+                  
+                  {/* Partie dépliable avec les détails */}
+                  {expandedItems[subscription.id] && (
+                    <div className={`px-4 pb-4 ${detailsBgClass} border-t border-gray-100 subscription-details`}>
+                      {/* Caractéristiques du plan */}
+                      <div className="mt-3 p-3 bg-white rounded-md shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 subscription-info-grid">
+                        {subscription.subscription_plans?.max_scan_auto && (
+                          renderFeatureWithValue(
+                            "Scans par jour", 
+                            subscription.subscription_plans.max_scan_auto,
+                            <Camera className={`h-4 w-4 ${isOffered ? 'text-purple-500' : 'text-green-500'} mr-2 flex-shrink-0`} />,
+                            isOffered
+                          )
+                        )}
+                        
+                        {subscription.subscription_plans?.max_scan_manuel && (
+                          renderFeatureWithValue(
+                            "Scans manuels par jour", 
+                            subscription.subscription_plans.max_scan_manuel,
+                            <Camera className={`h-4 w-4 ${isOffered ? 'text-purple-500' : 'text-green-500'} mr-2 flex-shrink-0`} />,
+                            isOffered
+                          )
+                        )}
+                        
+                        {subscription.subscription_plans?.max_recherche && (
+                          renderFeatureWithValue(
+                            "Recherches par jour", 
+                            subscription.subscription_plans.max_recherche,
+                            <Search className={`h-4 w-4 ${isOffered ? 'text-purple-500' : 'text-green-500'} mr-2 flex-shrink-0`} />,
+                            isOffered
+                          )
+                        )}
+                        
+                        {subscription.subscription_plans?.max_consult_avis && (
+                          renderFeatureWithValue(
+                            "Consultation avis par jour", 
+                            subscription.subscription_plans.max_consult_avis,
+                            <Eye className={`h-4 w-4 ${isOffered ? 'text-purple-500' : 'text-green-500'} mr-2 flex-shrink-0`} />,
+                            isOffered
+                          )
+                        )}
+                      </div>
                       
-                      {subscription.subscription_plans?.max_scan_manuel && (
-                        renderFeatureWithValue(
-                          "Scans manuels par jour", 
-                          subscription.subscription_plans.max_scan_manuel,
-                          <Camera className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        )
-                      )}
-                      
-                      {subscription.subscription_plans?.max_recherche && (
-                        renderFeatureWithValue(
-                          "Recherches par jour", 
-                          subscription.subscription_plans.max_recherche,
-                          <Search className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        )
-                      )}
-                      
-                      {subscription.subscription_plans?.max_consult_avis && (
-                        renderFeatureWithValue(
-                          "Consultation avis par jour", 
-                          subscription.subscription_plans.max_consult_avis,
-                          <Eye className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        )
-                      )}
-                    </div>
-                    
-                    {/* Informations de paiement */}
-                    <div className="mt-3 p-3 bg-white rounded-md shadow-sm">
-                      <h5 className="font-medium text-gray-700 mb-2 subscription-header">Informations de paiement</h5>
-                      <div className="grid grid-cols-1 gap-2 mt-3">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <CreditCard className="mr-1.5 h-4 w-4 text-gray-400" />
-                          <span className="mr-2">
-                            {subscription.payment_method === 'card' ? 'Carte bancaire' : subscription.payment_method}
-                          </span>
-                          {renderPaymentStatus(subscription.payment_status)}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <div className={subscription.is_auto_renew ? 'text-green-600' : 'text-gray-600'}>
-                            {subscription.is_auto_renew 
-                              ? 'Renouvellement automatique activé' 
-                              : 'Sans renouvellement automatique'}
-                          </div>
+                      {/* Informations de paiement */}
+                      <div className="mt-3 p-3 bg-white rounded-md shadow-sm">
+                        <h5 className="font-medium text-gray-700 mb-2 subscription-header">Informations de paiement</h5>
+                        <div className="grid grid-cols-1 gap-2 mt-3">
+                          {renderAutoRenewal(subscription)}
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </li>
-            ))}
+                  )}
+                </li>
+              );
+            })}
           </ul>
           
           <div className="mt-6 text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">

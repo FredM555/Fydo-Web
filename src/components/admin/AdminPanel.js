@@ -1,4 +1,4 @@
-// src/components/admin/AdminPanel.js - Modifié pour ajouter nouvelles statistiques
+// src/components/admin/AdminPanel.js - Modifié pour distinguer les types d'abonnements
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,11 +20,16 @@ import {
   Database,
   Star,
   BarChart2,
-  FileSearch
+  FileSearch,
+  Gift,
+  Clock,
+  Info,
+  DollarSign
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileLayout from '../profile/ProfileLayout';
 import { getReviewStats } from '../../services/adminService';
+import { formatDate } from '../../utils/formatters';
 
 const AdminPanel = () => {
   const { currentUser, userDetails } = useAuth();
@@ -38,10 +43,20 @@ const AdminPanel = () => {
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [subscriptionHistory, setSubscriptionHistory] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedDuration, setSelectedDuration] = useState(1); // Durée en mois
   const [successMessage, setSuccessMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [reviewStats, setReviewStats] = useState({ pending: 0 });
+  
+  // Statistiques d'abonnements
+  const [subscriptionStats, setSubscriptionStats] = useState({
+    totalActive: 0,
+    offeredActive: 0,
+    paidActive: 0
+  });
   
   // Nouvelles statistiques
   const [productStats, setProductStats] = useState({ 
@@ -77,7 +92,8 @@ const AdminPanel = () => {
               start_date,
               end_date,
               is_active,
-              is_auto_renew
+              is_auto_renew,
+              payment_method
             )
           `)
           .order('created_at', { ascending: false });
@@ -132,6 +148,31 @@ const AdminPanel = () => {
           .eq('interaction_type', 'searchName');
           
         if (searchNameCountError) throw searchNameCountError;
+        
+        // Calculer les statistiques d'abonnements
+        const activeSubscriptions = data
+          .flatMap(user => user.user_subscriptions)
+          .filter(sub => sub && sub.is_active);
+          
+        const now = new Date();
+        const validActiveSubscriptions = activeSubscriptions.filter(sub => {
+          const endDate = new Date(sub.end_date);
+          return endDate > now;
+        });
+        
+        const offeredSubscriptions = validActiveSubscriptions.filter(
+          sub => sub.payment_method === 'offert'
+        );
+        
+        const paidSubscriptions = validActiveSubscriptions.filter(
+          sub => sub.payment_method !== 'offert'
+        );
+        
+        setSubscriptionStats({
+          totalActive: validActiveSubscriptions.length,
+          offeredActive: offeredSubscriptions.length,
+          paidActive: paidSubscriptions.length
+        });
         
         // Mettre à jour les statistiques
         setProductStats({
@@ -197,7 +238,7 @@ const AdminPanel = () => {
 
   // Assigner un nouvel abonnement
   const assignSubscription = async () => {
-    if (!selectedUserId || !selectedPlan) return;
+    if (!selectedUserId || !selectedPlan || !selectedDuration) return;
     
     setIsProcessing(true);
     
@@ -208,25 +249,23 @@ const AdminPanel = () => {
       const plan = subscriptionPlans.find(p => p.id === selectedPlan);
       if (!plan) throw new Error("Plan d'abonnement non trouvé");
       
-      // Désactiver l'abonnement actuel si existant
+      // Désactiver l'abonnement offert actuel si existant
       try {
         await supabase
           .from('user_subscriptions')
           .update({ is_active: false })
           .eq('user_id', selectedUserId)
           .eq('is_active', true)
-          .eq('payment_method' , 'offert');
+          .eq('payment_method', 'offert');
       } catch (err) {
-        console.log("Note: Aucun abonnement actif à désactiver ou erreur:", err.message);
+        console.log("Note: Aucun abonnement offert actif à désactiver ou erreur:", err.message);
       }
-
-      
       
       // Calculer les dates d'abonnement
       const startDate = new Date();
       
       // Utiliser la fonction addMonths pour calculer la date de fin
-      const monthsToAdd = plan.duration_month || 1;
+      const monthsToAdd = parseInt(selectedDuration, 10) || 1;
       const endDate = addMonths(startDate, monthsToAdd);
       
       // Créer le nouvel abonnement
@@ -242,7 +281,7 @@ const AdminPanel = () => {
             is_active: true,
             payment_status: 'completed',
             payment_method: 'offert',
-            is_auto_renew: true
+            is_auto_renew: false // Les abonnements offerts n'ont jamais de renouvellement automatique
           }
         ])
         .select();
@@ -260,17 +299,31 @@ const AdminPanel = () => {
       // Mettre à jour la liste des utilisateurs
       const updatedUsers = users.map(u => {
         if (u.id === selectedUserId) {
+          // Conserver les abonnements existants et ajouter le nouveau
+          const existingSubscriptions = u.user_subscriptions || [];
+          // Désactiver tous les abonnements offerts existants
+          const updatedExistingSubscriptions = existingSubscriptions.map(sub => {
+            if (sub.payment_method === 'offert' && sub.is_active) {
+              return { ...sub, is_active: false };
+            }
+            return sub;
+          });
+          
           return {
             ...u,
             user_type: plan.name,
-            user_subscriptions: [{
-              id: newSubscription[0].id,
-              plan_id: selectedPlan,
-              start_date: startDate.toISOString(),
-              end_date: endDate.toISOString(),
-              is_active: true,
-              is_auto_renew: true
-            }]
+            user_subscriptions: [
+              ...updatedExistingSubscriptions,
+              {
+                id: newSubscription[0].id,
+                plan_id: selectedPlan,
+                start_date: startDate.toISOString(),
+                end_date: endDate.toISOString(),
+                is_active: true,
+                is_auto_renew: false,
+                payment_method: 'offert'
+              }
+            ]
           };
         }
         return u;
@@ -278,14 +331,41 @@ const AdminPanel = () => {
       
       setUsers(updatedUsers);
       setFilteredUsers(updatedUsers);
-      setSuccessMessage(`Abonnement ${plan.name} assigné avec succès à ${user.display_name || user.email} (${monthsToAdd} mois)`);
+      setSuccessMessage(`Abonnement ${plan.name} offert assigné avec succès à ${user.display_name || user.email} (${monthsToAdd} mois)`);
       
       // Réinitialiser après 3 secondes
       setTimeout(() => {
         setSuccessMessage(null);
+        closeModal();
       }, 3000);
     } catch (err) {
       console.error("Erreur lors de l'assignation de l'abonnement:", err);
+      setError(`Erreur: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Récupérer l'historique des abonnements d'un utilisateur
+  const fetchSubscriptionHistory = async (userId) => {
+    try {
+      setIsProcessing(true);
+      
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select(`
+          *,
+          subscription_plans(name, price_monthly, price_yearly)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setSubscriptionHistory(data);
+      setHistoryModalOpen(true);
+    } catch (err) {
+      console.error("Erreur lors de la récupération de l'historique des abonnements:", err);
       setError(`Erreur: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -322,11 +402,9 @@ const AdminPanel = () => {
     }
   };
 
-  // Afficher l'état de l'abonnement
+  // Afficher les abonnements de l'utilisateur
   const renderSubscriptionStatus = (user) => {
-    const activeSubscription = user.user_subscriptions?.find(sub => sub.is_active);
-    
-    if (!activeSubscription) {
+    if (!user.user_subscriptions || user.user_subscriptions.length === 0) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
           Aucun abonnement
@@ -335,42 +413,73 @@ const AdminPanel = () => {
     }
     
     const now = new Date();
-    const endDate = new Date(activeSubscription.end_date);
     
-    const plan = subscriptionPlans.find(p => p.id === activeSubscription.plan_id);
-    const planName = plan ? plan.name : 'Inconnu';
+    // Trouver l'abonnement payé actif
+    const paidSubscription = user.user_subscriptions.find(sub => 
+      sub.is_active && 
+      sub.payment_method !== 'offert' && 
+      new Date(sub.end_date) > now
+    );
     
-    if (now > endDate) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          Expiré ({planName})
-        </span>
-      );
-    }
+    // Trouver l'abonnement offert actif
+    const offeredSubscription = user.user_subscriptions.find(sub => 
+      sub.is_active && 
+      sub.payment_method === 'offert' && 
+      new Date(sub.end_date) > now
+    );
     
+    // Afficher les deux types d'abonnements
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        Actif ({planName})
-      </span>
+      <div className="flex flex-col space-y-1">
+        {paidSubscription && (
+          <div className="flex items-center">
+            <DollarSign size={12} className="mr-1 text-green-600" />
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              {getPlanName(paidSubscription.plan_id)} (Payé)
+              <span className="ml-1 text-xs">{formatDate(paidSubscription.end_date)}</span>
+            </span>
+          </div>
+        )}
+        
+        {offeredSubscription && (
+          <div className="flex items-center">
+            <Gift size={12} className="mr-1 text-purple-600" />
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              {getPlanName(offeredSubscription.plan_id)} (Offert)
+              <span className="ml-1 text-xs">{formatDate(offeredSubscription.end_date)}</span>
+            </span>
+          </div>
+        )}
+        
+        {!paidSubscription && !offeredSubscription && (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            Aucun abonnement actif
+          </span>
+        )}
+      </div>
     );
   };
 
-  // Formater la date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+  // Récupérer le nom du plan par son ID
+  const getPlanName = (planId) => {
+    const plan = subscriptionPlans.find(p => p.id === planId);
+    return plan ? plan.name : 'Inconnu';
   };
 
   // Ouverture du modal pour assigner un abonnement
   const openSubscriptionModal = (userId) => {
     setSelectedUserId(userId);
     setModalOpen(true);
+    // Réinitialiser les valeurs
+    setSelectedPlan(null);
+    setSelectedDuration(1);
+    setSuccessMessage(null);
+  };
+
+  // Ouvrir le modal d'historique des abonnements
+  const openHistoryModal = (userId) => {
+    setSelectedUserId(userId);
+    fetchSubscriptionHistory(userId);
   };
 
   // Fermer le modal
@@ -378,7 +487,32 @@ const AdminPanel = () => {
     setModalOpen(false);
     setSelectedUserId(null);
     setSelectedPlan(null);
+    setSelectedDuration(1);
     setSuccessMessage(null);
+  };
+
+  // Fermer le modal d'historique
+  const closeHistoryModal = () => {
+    setHistoryModalOpen(false);
+    setSubscriptionHistory([]);
+  };
+
+  // Style pour le badge d'abonnement dans l'historique
+  const getSubscriptionBadgeStyle = (paymentMethod) => {
+    if (paymentMethod === 'offert') {
+      return 'bg-purple-100 text-purple-800';
+    } else {
+      return 'bg-green-100 text-green-800';
+    }
+  };
+
+  // Icône pour le type d'abonnement dans l'historique
+  const getSubscriptionIcon = (paymentMethod) => {
+    if (paymentMethod === 'offert') {
+      return <Gift size={14} className="text-purple-600" />;
+    } else {
+      return <DollarSign size={14} className="text-green-600" />;
+    }
   };
 
   return (
@@ -419,6 +553,7 @@ const AdminPanel = () => {
           
           {/* Tableau de bord - Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* Statistiques des utilisateurs */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
               <div className="p-3 rounded-full bg-blue-100 mr-4">
                 <Users className="h-6 w-6 text-blue-600" />
@@ -429,17 +564,27 @@ const AdminPanel = () => {
               </div>
             </div>
             
+            {/* Statistiques des abonnements */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
-              <div className="p-3 rounded-full bg-green-100 mr-4">
-                <Check className="h-6 w-6 text-green-600" />
+              <div className="p-3 rounded-full bg-purple-100 mr-4">
+                <CreditCard className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Avis approuvés</p>
-                <p className="text-xl font-bold">{reviewStats.approved || 0}</p>
+                <p className="text-sm text-gray-500">Abonnements actifs</p>
+                <div className="flex space-x-4">
+                  <div className="flex items-center">
+                    <Gift size={14} className="text-purple-600 mr-1" />
+                    <span className="text-purple-600 font-bold">{subscriptionStats.offeredActive}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <DollarSign size={14} className="text-green-600 mr-1" />
+                    <span className="text-green-600 font-bold">{subscriptionStats.paidActive}</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* Remplacement: "Avis en attente" par "Produits consultés" et "Produits avec avis" */}
+            {/* Statistiques des produits */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
               <div className="p-3 rounded-full bg-indigo-100 mr-4">
                 <Database className="h-6 w-6 text-indigo-600" />
@@ -456,7 +601,7 @@ const AdminPanel = () => {
               </div>
             </div>
             
-            {/* Remplacement: "Avis rejetés" par "Nb de scans" et "Nb de recherches par nom" */}
+            {/* Statistiques des interactions */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
               <div className="p-3 rounded-full bg-amber-100 mr-4">
                 <BarChart2 className="h-6 w-6 text-amber-600" />
@@ -508,7 +653,7 @@ const AdminPanel = () => {
                     Rôle
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Abonnement
+                    Abonnements actifs
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date inscription
@@ -562,9 +707,23 @@ const AdminPanel = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => openSubscriptionModal(user.id)}
-                          className="text-green-600 hover:text-green-900 mr-3"
+                          className="text-purple-600 hover:text-purple-900 mr-3"
+                          title="Assigner un abonnement offert"
                         >
-                          Assigner abonnement
+                          <span className="flex items-center">
+                            <Gift size={16} className="mr-1" />
+                            Offrir
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => openHistoryModal(user.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Voir l'historique des abonnements"
+                        >
+                          <span className="flex items-center">
+                            <Clock size={16} className="mr-1" />
+                            Historique
+                          </span>
                         </button>
                       </td>
                     </tr>
@@ -574,11 +733,14 @@ const AdminPanel = () => {
             </table>
           </div>
           
-          {/* Modal d'assignation d'abonnement */}
+          {/* Modal d'assignation d'abonnement offert */}
           {modalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg max-w-md w-full p-6">
-                <h3 className="text-lg font-bold mb-4">Assigner un abonnement</h3>
+                <h3 className="text-lg font-bold mb-4 flex items-center">
+                  <Gift className="text-purple-600 mr-2" size={20} />
+                  Assigner un abonnement offert
+                </h3>
                 
                 {successMessage ? (
                   <div className="p-4 bg-green-100 text-green-700 rounded-md mb-4 flex items-center">
@@ -605,6 +767,27 @@ const AdminPanel = () => {
                       </select>
                     </div>
                     
+                    <div className="mb-6">
+                      <label className="block text-gray-700 font-medium mb-2">
+                        Durée (en mois)
+                      </label>
+                      <select
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        value={selectedDuration}
+                        onChange={(e) => setSelectedDuration(e.target.value)}
+                      >
+                        {[1, 3, 6, 12, 24].map((months) => (
+                          <option key={months} value={months}>
+                            {months} {months === 1 ? 'mois' : 'mois'}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">
+                        <Info size={14} className="inline mr-1" />
+                        Cet abonnement sera marqué comme "offert" et n'aura pas de renouvellement automatique
+                      </p>
+                    </div>
+                    
                     <div className="flex justify-end space-x-3">
                       <button
                         onClick={closeModal}
@@ -614,7 +797,7 @@ const AdminPanel = () => {
                       </button>
                       <button
                         onClick={assignSubscription}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center"
                         disabled={!selectedPlan || isProcessing}
                       >
                         {isProcessing ? (
@@ -623,11 +806,134 @@ const AdminPanel = () => {
                             Traitement...
                           </span>
                         ) : (
-                          'Assigner'
+                          <>
+                            <Gift size={18} className="mr-2" />
+                            Assigner
+                          </>
                         )}
                       </button>
                     </div>
                   </>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Modal d'historique des abonnements */}
+          {historyModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[80vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold flex items-center">
+                    <Clock className="text-blue-600 mr-2" size={20} />
+                    Historique des abonnements
+                  </h3>
+                  <button
+                    onClick={closeHistoryModal}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                
+                {isProcessing ? (
+                  <div className="flex justify-center items-center py-12">
+                    <Loader size={40} className="animate-spin text-blue-600" />
+                  </div>
+                ) : subscriptionHistory.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                    <p>Aucun historique d'abonnement pour cet utilisateur</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date de début
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date de fin
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Plan
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Statut
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Renouvellement auto.
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {subscriptionHistory.map((subscription) => {
+                          const now = new Date();
+                          const endDate = new Date(subscription.end_date);
+                          const isActive = subscription.is_active && endDate > now;
+                          
+                          return (
+                            <tr key={subscription.id} className={isActive ? "bg-green-50" : ""}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDate(subscription.start_date, true)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDate(subscription.end_date, true)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className="font-medium text-gray-900">
+                                  {subscription.subscription_plans?.name || 'Plan inconnu'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSubscriptionBadgeStyle(subscription.payment_method)}`}>
+                                  {getSubscriptionIcon(subscription.payment_method)}
+                                  <span className="ml-1">
+                                    {subscription.payment_method === 'offert' ? 'Offert' : 'Payé'}
+                                  </span>
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {isActive ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <Check size={12} className="mr-1" />
+                                    Actif
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <X size={12} className="mr-1" />
+                                    Inactif
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {subscription.payment_method === 'offert' ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <X size={12} className="mr-1" />
+                                    Non applicable
+                                  </span>
+                                ) : subscription.is_auto_renew ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <RefreshCw size={12} className="mr-1" />
+                                    Activé
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <X size={12} className="mr-1" />
+                                    Désactivé
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
