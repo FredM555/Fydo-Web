@@ -33,6 +33,13 @@ import FavoritesList from './components/profile/FavoritesList';
 import ProductHistory  from './components/profile/ProductHistory';
 import UserReviews from './components/profile/UserReviews';
 
+import LegalNotice from './pages/LegalNotice';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+
+import Contact from './components/Contact';
+
+
 // Composant PrivateRoute amélioré pour protéger les routes qui nécessitent une authentification
 const PrivateRoute = ({ element }) => {
   const { currentUser } = useAuth();
@@ -54,8 +61,8 @@ function App() {
         <div className="min-h-screen bg-green-50 flex flex-col">
           <Helmet>
             <title>Fydo - Avis Produits</title>
-  <link rel="icon" href="/images/Fydo-icone.png" type="image/png" />
-  <link rel="shortcut icon" href="/images/Fydo-icone.png" type="image/png" />
+            <link rel="icon" href="/images/Fydo-icone.png" type="image/png" />
+            <link rel="shortcut icon" href="/images/Fydo-icone.png" type="image/png" />
           </Helmet>
           
           <Header />
@@ -106,6 +113,8 @@ function App() {
               <PrivateRoute element={<ProductHistory />} />
             } />
 
+            <Route path="/contact" element={<Contact />} />
+
             {/* Routes pour les fonctionnalités de recherche de produits */}
             <Route path="/product-search" element={<ProductSearch />} />
             <Route path="/recherche-opti" element={<ProductSearchOpti />} />
@@ -127,6 +136,15 @@ function App() {
               <AdminRoute element={<PendingReviews />} />
             } />
             
+            {/* Nouvelle route pour les politiques de confidentialités */}
+            <Route path="/conditions-utilisation" element={<TermsOfService />} />
+
+            {/* Nouvelle route pour les politiques de confidentialités */}
+            <Route path="/politique-confidentialite" element={<PrivacyPolicy />} />
+
+            {/* Nouvelle route pour les mentions légales */}
+            <Route path="/mentions-legales" element={<LegalNotice />} />
+
             {/* Route fallback pour les URL inconnues */}
             <Route path="*" element={<Navigate to="/" replace />} />
 

@@ -1,5 +1,6 @@
 // src/components/Footer.js
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   return (
@@ -30,9 +31,9 @@ const Footer = () => {
             <div>
               <h3 className="font-bold mb-4 text-lg">Légal</h3>
               <ul className="space-y-2">
-                <li><a href="/#" className="hover:text-green-300">Conditions d'utilisation</a></li>
-                <li><a href="/#" className="hover:text-green-300">Politique de confidentialité</a></li>
-                <li><a href="/#" className="hover:text-green-300">Mentions légales</a></li>
+                <li><Link to="/conditions-utilisation" className="hover:text-green-300">Conditions d'utilisation</Link></li>
+                <li><Link to="/politique-confidentialite" className="hover:text-green-300">Politique de confidentialité</Link></li>
+                <li><Link to="/mentions-legales" className="hover:text-green-300">Mentions légales</Link></li>
               </ul>
             </div>
             
