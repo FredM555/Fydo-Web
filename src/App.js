@@ -20,6 +20,7 @@ import AdminPanel from './components/admin/AdminPanel';
 import PendingReviews from './components/admin/PendingReviews'; // Nouveau composant
 import NotFound from './pages/NotFound';
 import FAQ from './components/FAQ';
+import ConceptPage from './pages/ConceptPage';
 
 // Routes pour les abonnements
 import SubscriptionPlans from './pages/SubscriptionPlans';
@@ -39,6 +40,7 @@ import TermsOfService from './pages/TermsOfService';
 
 import Contact from './components/Contact';
 import FeaturesPage from './pages/FeaturesPage'
+import { Import } from 'lucide-react';
 
 // Composant PrivateRoute amélioré pour protéger les routes qui nécessitent une authentification
 const PrivateRoute = ({ element }) => {
@@ -115,7 +117,7 @@ function App() {
 
             <Route path="/contact" element={<Contact />} />
 
-            <Route path="/concept" element={<Concept />} />
+            <Route path="/concept" element={<ConceptPage />} />
             <Route path="/fonctionnalites" element={<FeaturesPage />} />
             
             {/* Routes pour les fonctionnalités de recherche de produits */}
