@@ -140,7 +140,7 @@ const LegalNotice = () => {
                 </p>
                 
                 <ul className="list-disc pl-6 space-y-1">
-                  <li>Droit d'accèss</li>
+                  <li>Droit d'accès</li>
                   <li>Droit de rectification</li>
                   <li>Droit à l'effacement</li>
                   <li>Droit à la limitation du traitement</li>
