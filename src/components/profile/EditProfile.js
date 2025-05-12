@@ -3,14 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { updateProfile } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Check, AlertCircle } from 'lucide-react';
+import { User, Check, AlertCircle, MapPin } from 'lucide-react';
 import ProfileLayout from './ProfileLayout';
 import { supabase } from '../../supabaseClient';
 
 const EditProfile = () => {
-  const { currentUser, refreshUserDetails } = useAuth();
+  const { currentUser, refreshUserDetails, userDetails } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  // Ajouter les états pour les nouveaux champs
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +25,14 @@ const EditProfile = () => {
       setDisplayName(currentUser.displayName || '');
       setEmail(currentUser.email || '');
     }
-  }, [currentUser]);
+    
+    // Remplir les champs d'adresse s'ils existent dans userDetails
+    if (userDetails) {
+      setCountry(userDetails.country || '');
+      setCity(userDetails.city || '');
+      setPostalCode(userDetails.postalCode || '');
+    }
+  }, [currentUser, userDetails]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,7 +71,11 @@ const EditProfile = () => {
         const { error: updateError } = await supabase
           .from('users')
           .update({ 
-            display_name: displayName
+            display_name: displayName,
+            // Ajouter les nouveaux champs d'adresse
+            country: country,
+            city: city,
+            postal_code: postalCode
           })
           .eq('id', userData.id);
           
@@ -110,7 +125,7 @@ const EditProfile = () => {
         
         <div className="mb-4">
           <label className="block text-gray-700 mb-2" htmlFor="displayName">
-            Nom d'affichage
+            Nom / Pseudo
           </label>
           <div className="relative">
             <input
@@ -139,6 +154,55 @@ const EditProfile = () => {
           <p className="text-xs text-gray-500 mt-1">
             L'adresse email ne peut pas être modifiée
           </p>
+        </div>
+        
+        {/* Nouveaux champs d'adresse */}
+        <div className="mb-4">
+          <h3 className="text-lg font-medium text-gray-700 mb-3">Informations d'adresse</h3>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2" htmlFor="country">
+              Pays
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                id="country"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 pl-10"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+              />
+              <MapPin size={18} className="text-gray-500 absolute left-3 top-2.5" />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-gray-700 mb-2" htmlFor="city">
+                Ville
+              </label>
+              <input
+                type="text"
+                id="city"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-gray-700 mb-2" htmlFor="postalCode">
+                Code postal
+              </label>
+              <input
+                type="text"
+                id="postalCode"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+              />
+            </div>
+          </div>
         </div>
         
         <div className="flex space-x-4">

@@ -11,9 +11,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 /**
  * Synchronise un utilisateur Firebase avec Supabase
  * @param {Object} firebaseUser - L'utilisateur Firebase
+ * @param {Object} additionalInfo - Informations supplémentaires comme les données d'adresse
  * @returns {Promise<Object>} - L'utilisateur créé ou mis à jour dans Supabase
  */
-export const syncUserWithSupabase = async (firebaseUser) => {
+export const syncUserWithSupabase = async (firebaseUser, additionalInfo = {}) => {
   if (!firebaseUser) return null;
 
   try {
@@ -35,6 +36,11 @@ export const syncUserWithSupabase = async (firebaseUser) => {
         display_name: firebaseUser.displayName || existingUser.display_name,
         updated_at: new Date()
       };
+
+      // Ajouter les champs d'adresse s'ils sont fournis
+      if (additionalInfo.country) updates.country = additionalInfo.country;
+      if (additionalInfo.city) updates.city = additionalInfo.city;
+      if (additionalInfo.postalCode) updates.postal_code = additionalInfo.postalCode;
 
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
@@ -60,7 +66,11 @@ export const syncUserWithSupabase = async (firebaseUser) => {
         manual_search_count: 0,
         scan_count: 0,
         status: 'bronze',
-        is_suspended: false
+        is_suspended: false,
+        // Ajouter les champs d'adresse s'ils sont fournis
+        country: additionalInfo.country || null,
+        city: additionalInfo.city || null,
+        postal_code: additionalInfo.postalCode || null
       };
 
       const { data: createdUser, error: createError } = await supabase
@@ -138,6 +148,50 @@ export const getUserSubscription = async (firebaseUid) => {
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'abonnement:', error);
     return { subscription: null, plan: null };
+  }
+};
+
+/**
+ * Met à jour les informations d'adresse d'un utilisateur
+ * @param {string} firebaseUid - L'identifiant Firebase de l'utilisateur
+ * @param {Object} addressInfo - Les informations d'adresse (country, city, postalCode)
+ * @returns {Promise<Object>} - Résultat de l'opération
+ */
+export const updateUserAddress = async (firebaseUid, addressInfo) => {
+  if (!firebaseUid) return { success: false, error: 'Identifiant utilisateur requis' };
+  
+  try {
+    // Récupérer l'ID Supabase de l'utilisateur
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('firebase_uid', firebaseUid)
+      .single();
+      
+    if (userError) throw userError;
+    
+    // Préparer les champs à mettre à jour
+    const updates = {
+      updated_at: new Date()
+    };
+    
+    if (addressInfo.country !== undefined) updates.country = addressInfo.country;
+    if (addressInfo.city !== undefined) updates.city = addressInfo.city;
+    if (addressInfo.postalCode !== undefined) updates.postal_code = addressInfo.postalCode;
+    
+    // Mettre à jour l'utilisateur
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userData.id)
+      .select('*');
+      
+    if (error) throw error;
+    
+    return { success: true, user: data[0] };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'adresse:', error);
+    return { success: false, error: error.message };
   }
 };
 

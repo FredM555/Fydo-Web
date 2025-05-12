@@ -91,7 +91,12 @@ export const AuthProvider = ({ children }) => {
           scanCount: supabaseUser.scan_count || 0,
           status: supabaseUser.status || 'bronze',
           isSuspended: supabaseUser.is_suspended || false,
-          subscription_name: supabaseUser.subscription_name || 'Gratuit'
+          subscription_name: supabaseUser.subscription_name || 'Gratuit',
+                  // Ajouter les nouveaux champs d'adresse
+        country: supabaseUser.country || '',
+        city: supabaseUser.city || '',
+        postalCode: supabaseUser.postal_code || ''
+
         });
         
         // Récupérer les informations d'abonnement

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserSubscription } from '../../services/subscriptionService';
-import { ShoppingBag, AlertCircle, Settings, Star, Heart, Award, Shield, Badge, Calendar } from 'lucide-react';
+import { ShoppingBag, AlertCircle, Settings, Star, Heart, Award, Shield, Badge, Calendar, Map } from 'lucide-react';
 import ProfileLayout from '../profile/ProfileLayout';
 
 const UserProfile = () => {
@@ -161,7 +161,42 @@ const UserProfile = () => {
           )}
         </div>
       </div>
-      
+      {/* Informations d'adresse */}
+{(userDetails?.country || userDetails?.city || userDetails?.postalCode) && (
+  <div className="mb-6">
+    <h4 className="text-xl font-bold mb-2 flex items-center">
+      <Map size={18} className="mr-2 text-green-600" />
+      Informations d'adresse
+    </h4>
+    <div className="bg-gray-50 p-4 rounded-md">
+      <ul className="space-y-1">
+        {userDetails?.country && (
+          <li className="text-gray-700">
+            <span className="font-medium">Pays:</span> {userDetails.country}
+          </li>
+        )}
+        {userDetails?.city && (
+          <li className="text-gray-700">
+            <span className="font-medium">Ville:</span> {userDetails.city}
+          </li>
+        )}
+        {userDetails?.postalCode && (
+          <li className="text-gray-700">
+            <span className="font-medium">Code postal:</span> {userDetails.postalCode}
+          </li>
+        )}
+      </ul>
+      {!userDetails?.country && !userDetails?.city && !userDetails?.postalCode && (
+        <p className="text-gray-500 italic">Aucune information d'adresse renseignée</p>
+      )}
+      <Link to="/edit-profile" className="text-green-600 hover:text-green-800 text-sm mt-2 inline-block">
+        Modifier mes informations
+      </Link>
+    </div>
+  </div>
+)}
+
+
       {/* Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link to="/edit-profile" className="bg-green-100 text-green-700 py-3 px-4 rounded-md hover:bg-green-200 text-center transition flex items-center justify-center">

@@ -1,34 +1,53 @@
-// src/components/SignUp.js
+// src/components/login/SignUp.js
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/authService';
-import { Eye, EyeOff } from 'lucide-react'; // Importer les icônes d'œil
+import { Eye, EyeOff, MapPin } from 'lucide-react';
 
 const SignUp = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  // Ajouter les états pour les nouveaux champs
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [showAddressFields, setShowAddressFields] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // État pour l'affichage du mot de passe
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    try {
-      await registerUser(email, password, displayName);
-      navigate('/');
-    } catch (error) {
+  try {
+    await registerUser(email, password, displayName, {
+      country, 
+      city, 
+      postalCode
+    });
+    navigate('/');
+} catch (error) {
+  // Personnaliser les messages d'erreur courants
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      setError('Cet email a déjà un compte');
+      break;
+    case 'auth/invalid-email':
+      setError('Adresse email invalide');
+      break;
+    case 'auth/weak-password':
+      setError('Le mot de passe est trop faible');
+      break;
+    default:
       setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }
+}
+};
 
-  // Fonction pour basculer l'affichage du mot de passe
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -41,7 +60,7 @@ const SignUp = () => {
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2" htmlFor="displayName">Nom</label>
+          <label className="block text-gray-700 mb-2" htmlFor="displayName">Nom /</label>
           <input
             type="text"
             id="displayName"
@@ -64,7 +83,7 @@ const SignUp = () => {
           />
         </div>
         
-        <div className="mb-6">
+        <div className="mb-4">
           <label className="block text-gray-700 mb-2" htmlFor="password">Mot de passe</label>
           <div className="relative">
             <input
@@ -90,6 +109,64 @@ const SignUp = () => {
           </div>
           <p className="text-xs text-gray-500 mt-1">Le mot de passe doit contenir au moins 6 caractères</p>
         </div>
+        
+        {/* Bouton pour afficher/masquer les champs d'adresse */}
+        <button
+          type="button"
+          className="w-full py-2 px-4 mb-4 text-green-600 border border-green-300 rounded-md hover:bg-green-50 flex items-center justify-center"
+          onClick={() => setShowAddressFields(!showAddressFields)}
+        >
+          <MapPin size={18} className="mr-2" />
+          {showAddressFields ? 'Masquer les informations d\'adresse' : 'Ajouter des informations d\'adresse'}
+        </button>
+        
+        {/* Champs d'adresse (conditionnellement affichés) */}
+        {showAddressFields && (
+          <div className="mb-6 border p-4 rounded-md border-green-200 bg-green-50">
+            <h3 className="text-lg font-medium text-gray-700 mb-3">Informations d'adresse (optionnel)</h3>
+            
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2" htmlFor="country">
+                Pays
+              </label>
+              <input
+                type="text"
+                id="country"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-700 mb-2" htmlFor="city">
+                  Ville
+                </label>
+                <input
+                  type="text"
+                  id="city"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 mb-2" htmlFor="postalCode">
+                  Code postal
+                </label>
+                <input
+                  type="text"
+                  id="postalCode"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         
         <button
           type="submit"
