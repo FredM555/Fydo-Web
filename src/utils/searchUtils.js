@@ -385,7 +385,7 @@ export const filterProductByAllFields = (product, filters) => {
           source: 'database-fallback'
         };
       }
-      throw new Error(`Erreur lors de la recherche du code-barres: ${error.message}`);
+      throw new Error(`Erreur lors de la recherche du code-barres: ${barcode}`);
     }
   };
   
