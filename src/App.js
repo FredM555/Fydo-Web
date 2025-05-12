@@ -39,7 +39,6 @@ import TermsOfService from './pages/TermsOfService';
 
 import Contact from './components/Contact';
 
-
 // Composant PrivateRoute amélioré pour protéger les routes qui nécessitent une authentification
 const PrivateRoute = ({ element }) => {
   const { currentUser } = useAuth();
@@ -115,6 +114,7 @@ function App() {
 
             <Route path="/contact" element={<Contact />} />
 
+            <Route path="/concept" element={<Concept />} />
             {/* Routes pour les fonctionnalités de recherche de produits */}
             <Route path="/product-search" element={<ProductSearch />} />
             <Route path="/recherche-opti" element={<ProductSearchOpti />} />
