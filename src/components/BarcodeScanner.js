@@ -1,4 +1,4 @@
-// src/components/BarcodeScanner.js - version améliorée avec meilleure gestion des permissions
+// Modification du BarcodeScanner.js avec uniquement les angles verts et des paramètres optimisés
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
 import Quagga from 'quagga';
@@ -8,7 +8,24 @@ const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
   const [hasPermission, setHasPermission] = useState(null);
   const [permissionRequested, setPermissionRequested] = useState(false);
   const scannerRef = useRef(null);
+  const scanAreaRef = useRef(null);
   const initialized = useRef(false);
+  
+  // Fonction pour calculer les coordonnées de la zone de scan
+  const calculateScanArea = () => {
+    if (!scanAreaRef.current || !scannerRef.current) return null;
+    
+    const scannerRect = scannerRef.current.getBoundingClientRect();
+    const scanAreaRect = scanAreaRef.current.getBoundingClientRect();
+    
+    // Calculer les coordonnées relatives et les dimensions en pourcentage
+    return {
+      top: (scanAreaRect.top - scannerRect.top) / scannerRect.height,
+      right: (scannerRect.right - scanAreaRect.right) / scannerRect.width,
+      bottom: (scannerRect.bottom - scanAreaRect.bottom) / scannerRect.height,
+      left: (scanAreaRect.left - scannerRect.left) / scannerRect.width,
+    };
+  };
   
   // Fonction pour vérifier et demander les permissions de la caméra
   const checkCameraPermission = async () => {
@@ -47,60 +64,89 @@ const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
     
     console.log("Tentative d'initialisation de Quagga...");
     
-    Quagga.init({
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: scannerRef.current,
-        constraints: {
-          facingMode: "environment",
+    // Attendre un court instant pour que le DOM soit stable
+    setTimeout(() => {
+      // Calculer la zone de scan
+      const scanArea = calculateScanArea();
+      console.log("Zone de scan calculée:", scanArea);
+      
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: scannerRef.current,
+          constraints: {
+            facingMode: "environment",
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 }
+          },
+          area: scanArea ? {
+            // Limiter la zone de détection au cadre
+            top: `${scanArea.top * 100}%`,
+            right: `${scanArea.right * 100}%`,
+            bottom: `${scanArea.bottom * 100}%`,
+            left: `${scanArea.left * 100}%`
+          } : undefined
         },
-      },
-      locator: {
-        patchSize: "medium",
-        halfSample: true,
-      },
-      numOfWorkers: navigator.hardwareConcurrency || 4,
-      frequency: 10,
-      decoder: {
-        readers: [          "ean_reader",
-          "ean_8_reader",
-          "code_39_reader",
-          "code_128_reader"]
-      },
-      locate: true
-    }, function(err) {
-      if (err) {
-        console.error("Erreur d'initialisation de Quagga:", err);
-        setHasPermission(false);
-        setIsScanning(false);
-        return;
-      }
-      
-      console.log("Quagga initialisé avec succès");
-      initialized.current = true;
-      setHasPermission(true);
-      
-      // Démarrer Quagga
-      Quagga.start();
-      setIsScanning(true);
-      
-      // Configuration de l'événement de détection
-      Quagga.onDetected((result) => {
-        if (result && result.codeResult) {
-          const code = result.codeResult.code;
-          console.log("Code-barres détecté:", code);
-          
-          // Arrêter le scan
-          stopScanner();
-          
-          // Appeler le callback avec le code détecté
-          if (onScanComplete) {
-            onScanComplete(code);
+        locator: {
+          patchSize: "medium",
+          halfSample: true,
+          boxSizing: 0.65
+        },
+        numOfWorkers: navigator.hardwareConcurrency || 4,
+        frequency: 15,
+        decoder: {
+          readers: [
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "code_128_reader"
+          ],
+          multiple: false,
+          debug: {
+            showCanvas: false,
+            showPatches: false,
+            showFoundPatches: false,
+            showSkeleton: false,
+            showLabels: false,
+            showPatchLabels: false,
+            showRemainingPatchLabels: false
           }
+        },
+        locate: true
+      }, function(err) {
+        if (err) {
+          console.error("Erreur d'initialisation de Quagga:", err);
+          setHasPermission(false);
+          setIsScanning(false);
+          return;
         }
+        
+        console.log("Quagga initialisé avec succès");
+        initialized.current = true;
+        setHasPermission(true);
+        
+        // Démarrer Quagga
+        Quagga.start();
+        setIsScanning(true);
+        
+        // Configuration de l'événement de détection
+        Quagga.onDetected((result) => {
+          if (result && result.codeResult) {
+            const code = result.codeResult.code;
+            console.log("Code-barres détecté:", code);
+            
+            // Arrêter le scan
+            stopScanner();
+            
+            // Appeler le callback avec le code détecté
+            if (onScanComplete) {
+              onScanComplete(code);
+            }
+          }
+        });
       });
-    });
+    }, 300);
   };
   
   // Arrêt du scanner
@@ -123,34 +169,24 @@ const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
     setIsScanning(true);
   };
   
-  // Effet pour démarrer le scanner automatiquement si autoStart est true
-  // Mais uniquement après une vérification de permission
+  // Effets pour la gestion du cycle de vie
   useEffect(() => {
     if (autoStart && !initialized.current && !permissionRequested) {
       checkCameraPermission().then(hasAccess => {
-        if (hasAccess) {
-          // Petit délai pour s'assurer que le DOM est prêt
-          setTimeout(() => {
-            setIsScanning(true);
-          }, 300);
-        }
+        if (hasAccess) setTimeout(() => setIsScanning(true), 300);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
   
-  // Effet pour démarrer/arrêter le scanner quand isScanning change
   useEffect(() => {
     if (isScanning && !initialized.current) {
-      const timeout = setTimeout(() => {
-        startScanner();
-      }, 100);
+      const timeout = setTimeout(() => startScanner(), 100);
       return () => clearTimeout(timeout);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning]);
   
-  // Nettoyage lors du démontage du composant
   useEffect(() => {
     return () => {
       console.log("Démontage du composant BarcodeScanner");
@@ -180,16 +216,35 @@ const BarcodeScanner = ({ onScanComplete, autoStart = false }) => {
             ref={scannerRef}
             className="relative bg-black rounded-lg overflow-hidden aspect-[3/4] max-w-md mx-auto"
           >
-            {/* Cadre de scan - positionné par-dessus le flux vidéo géré par Quagga */}
+            {/* Cadre de scan - uniquement avec les angles verts */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="border-2 border-green-500 w-64 h-40 opacity-70">
-                <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-green-500"></div>
-                <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-green-500"></div>
-                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-green-500"></div>
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-green-500"></div>
+              <div 
+                ref={scanAreaRef}
+                className="w-64 h-40 relative"
+              >
+                {/* Uniquement les angles, similaires au logo Fydo */}
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-600 rounded-tl-lg"></div>
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-600 rounded-tr-lg"></div>
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-600 rounded-bl-lg"></div>
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-600 rounded-br-lg"></div>
               </div>
             </div>
+            
+            {/* Texte d'instruction */}
+            <div className="absolute bottom-5 left-0 right-0 text-center">
+              <p className="text-white text-sm font-medium bg-black bg-opacity-50 py-1 px-2 rounded-md inline-block">
+                Alignez le code-barre dans le cadre
+              </p>
+            </div>
           </div>
+          
+          {/* Bouton pour arrêter le scan */}
+          <button
+            onClick={stopScanner}
+            className="mt-4 bg-red-600 text-white rounded-full p-2 flex items-center justify-center mx-auto"
+          >
+            <X size={24} />
+          </button>
         </div>
       )}
       
