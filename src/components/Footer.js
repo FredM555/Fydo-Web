@@ -22,8 +22,8 @@ const Footer = () => {
               <h3 className="font-bold mb-4 text-lg">Navigation</h3>
               <ul className="space-y-2">
                 <li><a href="/#" className="hover:text-green-300">Accueil</a></li>
-                <li><a href="#concept" className="hover:text-green-300">Concept</a></li>
-                <li><a href="#fonctionnalites" className="hover:text-green-300">Fonctionnalités</a></li>
+                <li><Link to="/concept" className="hover:text-green-300">Concept</Link></li>
+                <li><Link to="/fonctionnalites" className="hover:text-green-300">Fonctionnalités</Link></li>
                 <li><a href="#telecharger" className="hover:text-green-300">Télécharger</a></li>
               </ul>
             </div>
