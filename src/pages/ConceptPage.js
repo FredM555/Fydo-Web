@@ -13,7 +13,10 @@ import {
   Zap, 
   BarChart, 
   Lock, 
-  UserCheck 
+  UserCheck,
+  MessageSquare,
+  Share2,
+  RefreshCw
 } from 'lucide-react';
 
 const Concept = () => {
@@ -21,7 +24,7 @@ const Concept = () => {
     <div className="bg-green-50 min-h-screen pt-24 pb-16">
       <Helmet>
         <title>Notre Concept | Fydo</title>
-        <meta name="description" content="Découvrez le concept de Fydo - Pourquoi et comment nous avons créé la première communauté d'avis vérifiés sur les produits alimentaires et cosmétiques" />
+        <meta name="description" content="Découvrez comment Fydo permet aux consommateurs de partager leurs expériences authentiques sur les produits alimentaires et cosmétiques du quotidien" />
       </Helmet>
 
       <div className="container mx-auto px-4">
@@ -38,15 +41,19 @@ const Concept = () => {
               
               <div className="space-y-4 text-gray-700">
                 <p>
-                  Fydo est né d'un constat simple : il est difficile de faire des choix éclairés lors de nos achats quotidiens, malgré la multitude d'informations disponibles sur les produits alimentaires et cosmétiques.
+                  Fydo est né d'un constat simple : les consommateurs n'ont que très peu d'occasions de partager leurs expériences authentiques sur les produits qu'ils achètent au quotidien.
+                </p>
+                
+                <p className="font-medium text-green-700">
+                  Qui n'a jamais été déçu par un changement de recette d'un produit favori, surpris par un rapport qualité-prix décevant, ou au contraire enchanté par une découverte qui mérite d'être partagée ?
                 </p>
                 
                 <p>
-                  Nos habitudes de consommation évoluent. Nous sommes de plus en plus nombreux à nous préoccuper de la composition des produits, de leur impact environnemental, et de l'éthique des marques que nous soutenons. Pourtant, il reste difficile de s'y retrouver face aux allégations marketing et aux informations parfois contradictoires.
+                  Jusqu'à présent, ces précieux retours d'expérience restaient souvent confinés à notre cercle proche, sans possibilité d'être entendus par d'autres consommateurs ou par les marques elles-mêmes.
                 </p>
                 
                 <p>
-                  C'est pourquoi nous avons créé Fydo, la première plateforme communautaire d'avis vérifiés par ticket de caisse, permettant de scanner et de partager des retours d'expérience authentiques sur les produits du quotidien.
+                  C'est pourquoi nous avons créé Fydo, la première plateforme communautaire d'avis vérifiés par ticket de caisse, permettant aux consommateurs de partager leurs expériences réelles sur les produits alimentaires et cosmétiques, et ainsi d'aider à l'amélioration continue de notre quotidien.
                 </p>
               </div>
             </div>
@@ -62,7 +69,7 @@ const Concept = () => {
               
               <div className="space-y-4 text-gray-700">
                 <p className="font-medium text-green-600 text-lg">
-                  Rendre la consommation plus transparente, plus éclairée et plus responsable.
+                  Permettre aux consommateurs de partager leurs retours d'expérience authentiques sur les produits du quotidien.
                 </p>
                 
                 <p>
@@ -72,19 +79,19 @@ const Concept = () => {
                 <ul className="space-y-2">
                   <li className="flex items-start">
                     <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Donner accès à des informations fiables sur les produits, enrichies par l'expérience réelle des consommateurs</span>
+                    <span>Créer un espace où les consommateurs peuvent s'exprimer sur la qualité, le goût, le rapport qualité-prix et d'autres critères pertinents sur leurs achats quotidiens</span>
                   </li>
                   <li className="flex items-start">
                     <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Créer une communauté active et transparente, où chaque avis est vérifié par une preuve d'achat</span>
+                    <span>Garantir la fiabilité de chaque avis grâce à la vérification par ticket de caisse, éliminant ainsi les doutes sur leur authenticité</span>
                   </li>
                   <li className="flex items-start">
                     <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Simplifier le processus de décision lors des achats grâce à un système de scan et de recherche intuitif</span>
+                    <span>Aider les marques à comprendre les attentes réelles de leurs clients pour mieux y répondre à travers leurs produits</span>
                   </li>
                   <li className="flex items-start">
                     <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Promouvoir une consommation plus consciente en mettant en lumière les aspects nutritionnels, environnementaux et éthiques des produits</span>
+                    <span>Faciliter le choix des consommateurs en leur donnant accès à des retours d'expérience pertinents avant leurs achats</span>
                   </li>
                 </ul>
               </div>
@@ -106,7 +113,7 @@ const Concept = () => {
                   </div>
                   <h3 className="font-semibold text-green-800 mb-2">1. Scannez</h3>
                   <p className="text-gray-700">
-                    Utilisez votre smartphone pour scanner le code-barres d'un produit alimentaire ou cosmétique. Fydo vous montrera instantanément toutes les informations disponibles.
+                    Utilisez votre smartphone pour scanner le code-barres d'un produit alimentaire ou cosmétique. Découvrez ce que d'autres consommateurs pensent de sa nouvelle recette, de son goût ou de son efficacité.
                   </p>
                 </div>
                 
@@ -116,17 +123,17 @@ const Concept = () => {
                   </div>
                   <h3 className="font-semibold text-green-800 mb-2">2. Découvrez</h3>
                   <p className="text-gray-700">
-                    Consultez les avis vérifiés des autres utilisateurs, les informations nutritionnelles, l'impact environnemental et bien plus encore sur chaque produit.
+                    Accédez aux avis détaillés sur le rapport qualité-prix, le goût après reformulation, la texture d'un cosmétique - des retours d'expérience réels basés sur des achats vérifiés.
                   </p>
                 </div>
                 
                 <div className="bg-green-50 p-5 rounded-lg">
                   <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                    <Users className="text-green-600" size={24} />
+                    <MessageSquare className="text-green-600" size={24} />
                   </div>
-                  <h3 className="font-semibold text-green-800 mb-2">3. Partagez</h3>
+                  <h3 className="font-semibold text-green-800 mb-2">3. Partagez votre avis</h3>
                   <p className="text-gray-700">
-                    Après avoir essayé un produit, partagez votre propre avis en téléchargeant une photo de votre ticket de caisse comme preuve d'achat.
+                    Après avoir essayé un produit, donnez votre propre retour d'expérience. Un simple scan de votre ticket de caisse authentifie votre avis, le rendant encore plus précieux pour la communauté et les marques.
                   </p>
                 </div>
               </div>
@@ -147,9 +154,21 @@ const Concept = () => {
                     <Shield className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Des avis vérifiés à 100%</h3>
+                    <h3 className="font-medium text-blue-800 mb-1">Des avis 100% vérifiés</h3>
                     <p>
-                      Contrairement à la plupart des plateformes d'avis, chaque avis sur Fydo est lié à un achat réel, vérifié par ticket de caisse. Finis les faux avis ou les témoignages biaisés.
+                      Chaque avis sur Fydo est lié à un achat réel, vérifié par ticket de caisse. Cette approche garantit des retours d'expérience authentiques, basés sur une utilisation réelle du produit.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
+                    <Share2 className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-blue-800 mb-1">Un canal de communication direct</h3>
+                    <p>
+                      Fydo crée un pont entre consommateurs et marques, permettant aux premiers d'exprimer leurs impressions réelles et aux secondes de mieux comprendre comment leurs produits sont perçus au quotidien.
                     </p>
                   </div>
                 </div>
@@ -159,33 +178,21 @@ const Concept = () => {
                     <UserCheck className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Une communauté active et reconnue</h3>
+                    <h3 className="font-medium text-blue-800 mb-1">Une communauté de confiance</h3>
                     <p>
-                      Notre système de statut utilisateur (Bronze, Argent, Or, Diamant) valorise les contributeurs réguliers et fiables, créant ainsi une communauté engagée et qualitative.
+                      Notre système de statut (Bronze, Argent, Or, Diamant) valorise les contributeurs réguliers et fiables, créant ainsi un cercle vertueux où les avis les plus utiles sont mis en avant.
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-start">
                   <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <Leaf className="text-blue-600" size={20} />
+                    <RefreshCw className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Vision à 360° des produits</h3>
+                    <h3 className="font-medium text-blue-800 mb-1">Un catalyseur d'amélioration</h3>
                     <p>
-                      Au-delà des avis, Fydo intègre des données nutritionnelles, environnementales (Éco-Score), et la présence d'allergènes, pour une vision complète de chaque produit.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <Lock className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Respect de la vie privée</h3>
-                    <p>
-                      Nous accordons une importance capitale à la protection de vos données. Les tickets sont anonymisés et vous gardez le contrôle sur les informations que vous partagez.
+                      Quand des consommateurs notent qu'un changement de recette déplaît ou qu'un packaging pose problème, les marques peuvent réagir et adapter leurs produits. Fydo favorise ainsi un dialogue constructif pour de meilleurs produits.
                     </p>
                   </div>
                 </div>
@@ -205,30 +212,63 @@ const Concept = () => {
                 <div className="p-4 bg-green-50 rounded-lg">
                   <h3 className="font-medium text-green-700 mb-2">Transparence</h3>
                   <p className="text-gray-700">
-                    Nous croyons que l'information claire et vérifiable est essentielle pour faire des choix éclairés.
+                    Nous croyons que la transparence dans les retours d'expérience bénéficie autant aux consommateurs qu'aux marques soucieuses de s'améliorer.
                   </p>
                 </div>
                 
                 <div className="p-4 bg-green-50 rounded-lg">
                   <h3 className="font-medium text-green-700 mb-2">Authenticité</h3>
                   <p className="text-gray-700">
-                    Chaque avis sur Fydo provient d'une expérience réelle et vérifiée.
+                    Chaque avis sur Fydo provient d'une expérience réelle et vérifiée, garantissant la pertinence des informations partagées.
                   </p>
                 </div>
                 
                 <div className="p-4 bg-green-50 rounded-lg">
                   <h3 className="font-medium text-green-700 mb-2">Communauté</h3>
                   <p className="text-gray-700">
-                    Fydo est avant tout une communauté collaborative où chaque contribution compte.
+                    Fydo est une communauté collaborative où chaque contribution enrichit l'expérience de tous et participe à l'amélioration des produits.
                   </p>
                 </div>
                 
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-700 mb-2">Responsabilité</h3>
+                  <h3 className="font-medium text-green-700 mb-2">Amélioration continue</h3>
                   <p className="text-gray-700">
-                    Nous encourageons une consommation plus consciente et respectueuse de l'environnement.
+                    Nous croyons que le feedback constructif des consommateurs est l'un des meilleurs moteurs de progrès pour les produits du quotidien.
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Exemples concrets */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
+                <Lightbulb className="mr-2" size={22} />
+                Situations où Fydo est utile
+              </h2>
+              
+              <div className="space-y-4 text-gray-700">
+                <p>Fydo vous aide lorsque :</p>
+                
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
+                    <span>Vous remarquez qu'une marque a changé la recette de votre biscuit préféré et vous voulez savoir si d'autres consommateurs l'ont également constaté</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
+                    <span>Vous hésitez entre deux shampoings et souhaitez connaître l'avis de personnes qui les ont réellement utilisés sur des critères comme l'efficacité ou le parfum</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
+                    <span>Vous trouvez qu'un produit a un rapport qualité-prix discutable et vous voulez partager cette observation pour aider d'autres consommateurs</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
+                    <span>Vous avez découvert un excellent produit et souhaitez le faire connaître à d'autres personnes avec des goûts similaires</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -237,11 +277,11 @@ const Concept = () => {
           <div className="bg-green-600 rounded-xl shadow-md overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-bold text-white flex items-center mb-4">
-                Rejoignez la communauté Fydo
+                Partagez vos expériences avec Fydo
               </h2>
               
               <p className="text-green-100 mb-4">
-                Ensemble, construisons une communauté de consommateurs éclairés et responsables, où chaque avis compte et contribue à des choix plus informés pour tous.
+                Rejoignez notre communauté et contribuez à améliorer les produits que nous utilisons tous les jours. Votre expérience compte et peut réellement faire la différence.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">

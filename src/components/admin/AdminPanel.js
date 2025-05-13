@@ -1,6 +1,6 @@
-// src/components/admin/AdminPanel.js - Modifié pour distinguer les types d'abonnements
+// src/components/admin/AdminPanel.js - Modifié pour inclure l'onglet des challenges
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../supabaseClient';
 import { 
@@ -24,9 +24,9 @@ import {
   Gift,
   Clock,
   Info,
-  DollarSign
+  DollarSign,
+  Trophy // Ajouté pour l'icône des challenges
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import ProfileLayout from '../profile/ProfileLayout';
 import { getReviewStats } from '../../services/adminService';
 import { formatDate } from '../../utils/formatters';
@@ -50,6 +50,7 @@ const AdminPanel = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [reviewStats, setReviewStats] = useState({ pending: 0 });
+  const [challengeStats, setChallengeStats] = useState({ total: 0, active: 0 }); // Ajout des stats pour les challenges
   
   // Statistiques d'abonnements
   const [subscriptionStats, setSubscriptionStats] = useState({
@@ -148,6 +149,25 @@ const AdminPanel = () => {
           .eq('interaction_type', 'searchName');
           
         if (searchNameCountError) throw searchNameCountError;
+        
+        // Récupérer les statistiques des challenges
+        const { count: totalChallengesCount, error: totalChallengesError } = await supabase
+          .from('challenges')
+          .select('*', { count: 'exact', head: true });
+          
+        if (totalChallengesError) throw totalChallengesError;
+        
+        const { count: activeChallengesCount, error: activeChallengesError } = await supabase
+          .from('challenges')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true);
+          
+        if (activeChallengesError) throw activeChallengesError;
+        
+        setChallengeStats({
+          total: totalChallengesCount || 0,
+          active: activeChallengesCount || 0
+        });
         
         // Calculer les statistiques d'abonnements
         const activeSubscriptions = data
@@ -549,10 +569,21 @@ const AdminPanel = () => {
                 </span>
               )}
             </Link>
+            
+            {/* Nouvel onglet pour les challenges */}
+            <Link to="/admin/challenges" className="px-4 py-2 text-gray-600 hover:text-green-600 flex items-center">
+              <Trophy className="inline-block mr-2" size={18} />
+              Challenges
+              {challengeStats.active > 0 && (
+                <span className="ml-2 flex items-center justify-center w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold">
+                  {challengeStats.active}
+                </span>
+              )}
+            </Link>
           </div>
           
           {/* Tableau de bord - Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             {/* Statistiques des utilisateurs */}
             <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
               <div className="p-3 rounded-full bg-blue-100 mr-4">
@@ -616,6 +647,26 @@ const AdminPanel = () => {
                   <div>
                     <p className="text-lg font-bold">{productStats.searchNameCount}</p>
                     <p className="text-xs text-gray-500">Recherches</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Nouvelles statistiques des challenges */}
+            <div className="bg-white p-4 rounded-lg shadow-sm flex items-center">
+              <div className="p-3 rounded-full bg-amber-100 mr-4">
+                <Trophy className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Challenges</p>
+                <div className="flex space-x-4">
+                  <div>
+                    <p className="text-lg font-bold">{challengeStats.active}</p>
+                    <p className="text-xs text-gray-500">Actifs</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{challengeStats.total - challengeStats.active}</p>
+                    <p className="text-xs text-gray-500">Inactifs</p>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-// src/App.js - Mise à jour pour ajouter la route vers la validation des avis
+// src/App.js - Mise à jour pour ajouter la route vers la gestion des challenges
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -17,7 +17,8 @@ import ProductSearchOpti from './components/ProductSearchOpti';
 import ProductSearchEnhanced from './components/ProductSearchEnhanced';
 // Importer les composants d'administration
 import AdminPanel from './components/admin/AdminPanel';
-import PendingReviews from './components/admin/PendingReviews'; // Nouveau composant
+import PendingReviews from './components/admin/PendingReviews'; 
+import AdminPendingChallenges from './components/admin/ChallengesModeration'; 
 import NotFound from './pages/NotFound';
 import FAQ from './components/FAQ';
 import ConceptPage from './pages/ConceptPage';
@@ -34,13 +35,15 @@ import FavoritesList from './components/profile/FavoritesList';
 import ProductHistory  from './components/profile/ProductHistory';
 import UserReviews from './components/profile/UserReviews';
 
+// Import de la nouvelle page Challenges
+import ChallengesPage from './pages/ChallengesPage';
+
 import LegalNotice from './pages/LegalNotice';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 
 import Contact from './components/Contact';
 import FeaturesPage from './pages/FeaturesPage'
-import { Import } from 'lucide-react';
 
 // Composant PrivateRoute amélioré pour protéger les routes qui nécessitent une authentification
 const PrivateRoute = ({ element }) => {
@@ -115,6 +118,11 @@ function App() {
               <PrivateRoute element={<ProductHistory />} />
             } />
 
+            {/* Nouvelle route pour la page des challenges - Protégée car accessible seulement aux utilisateurs connectés */}
+            <Route path="/challenges" element={
+              <PrivateRoute element={<ChallengesPage />} />
+            } />
+
             <Route path="/contact" element={<Contact />} />
 
             <Route path="/concept" element={<ConceptPage />} />
@@ -139,6 +147,10 @@ function App() {
             {/* Nouvelle route pour les avis en attente */}
             <Route path="/admin/pending-reviews" element={
               <AdminRoute element={<PendingReviews />} />
+            } />
+            {/* Nouvelle route pour la gestion des challenges */}
+            <Route path="/admin/challenges" element={
+              <AdminRoute element={<AdminPendingChallenges />} />
             } />
             
             {/* Nouvelle route pour les politiques de confidentialités */}
