@@ -1,8 +1,9 @@
-// src/components/ReviewForm.js
+// src/components/ReviewForm.js (mise à jour)
 import React, { useState, useEffect, useMemo } from 'react';
-import { Star, AlertCircle, CheckCircle, Loader, MapPin, Calendar, DollarSign, ShoppingBag, X } from 'lucide-react';
+import { Star, AlertCircle, CheckCircle, Loader, Calendar, DollarSign, ShoppingBag, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ReceiptUploadEnhanced from './ReceiptUploadEnhanced';
+import ReceiptItemSelector from './ReceiptItemSelector'; // Nouveau composant
 import { 
   getReviewCriterias, 
   addProductReview
@@ -34,17 +35,20 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
   const [criterias, setCriterias] = useState([]);
   
   // États pour les informations d'achat
-  const [authorizeReceiptSharing, setAuthorizeReceiptSharing] = useState(false);
+  // Modifier pour cocher par défaut l'autorisation de partage
+  const [authorizeReceiptSharing, setAuthorizeReceiptSharing] = useState(true);
   const [purchaseDate, setPurchaseDate] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [storeName, setStoreName] = useState('');
-  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [location, setLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
   
   // État pour les données extraites par Claude AI
   const [aiData, setAiData] = useState(null);
   const [aiDataAvailable, setAiDataAvailable] = useState(false);
+  
+  // Nouveau: état pour les articles du ticket
+  const [receiptItems, setReceiptItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   
   // Chargement des critères d'évaluation
   useEffect(() => {
@@ -69,32 +73,6 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
     
     fetchReviewCriterias();
   }, []);
-  
-  // Gestion de la géolocalisation
-  useEffect(() => {
-    if (useCurrentLocation) {
-      setLocationLoading(true);
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setLocationLoading(false);
-        },
-        (error) => {
-          console.error("Erreur de géolocalisation:", error);
-          setError("Impossible d'obtenir votre position. Veuillez autoriser l'accès à votre localisation.");
-          setLocationLoading(false);
-          setUseCurrentLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
-    } else if (!useCurrentLocation) {
-      setLocation(null);
-    }
-  }, [useCurrentLocation]);
   
   // Calcul de la note moyenne en temps réel (weighted average)
   const averageRating = useMemo(() => {
@@ -155,71 +133,134 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
         setPurchasePrice(extractedData.price.toString());
       }
       
+      // Nouveau: gérer les articles extraits du ticket
+      if (extractedData.articles && Array.isArray(extractedData.articles)) {
+        // Ajouter un ID temporaire à chaque article pour la gestion dans le composant
+        const itemsWithIds = extractedData.articles.map((item, index) => ({
+          ...item,
+          id: `ai-item-${index}`,
+          // Convertir les chaînes en nombres si nécessaire
+          quantite: typeof item.quantite === 'string' ? parseFloat(item.quantite) : item.quantite,
+          prix_unitaire: typeof item.prix_unitaire === 'string' ? parseFloat(item.prix_unitaire) : item.prix_unitaire,
+          prix_total: typeof item.prix_total === 'string' ? parseFloat(item.prix_total) : item.prix_total
+        }));
+        
+        setReceiptItems(itemsWithIds);
+        
+        // Vérifier si un article correspond au produit actuel
+        const productArticle = itemsWithIds.find(item => 
+          item.designation && 
+          product.product_name && 
+          item.designation.toLowerCase().includes(product.product_name.toLowerCase())
+        );
+        
+        if (productArticle) {
+          setSelectedItem(productArticle);
+        }
+      }
+      
       // Indiquer que les données AI sont disponibles
       setAiDataAvailable(true);
     }
   };
   
-  // Gestion de l'envoi de l'avis
-  const handleSubmitReview = async (e) => {
-    e.preventDefault();
+  // Gestion des mises à jour des articles du ticket
+  const handleReceiptItemsChange = (updatedItems) => {
+    setReceiptItems(updatedItems);
     
-    // Vérifier que l'utilisateur est connecté
-    if (!currentUser || !userDetails) {
-      setError("Vous devez être connecté pour laisser un avis");
-      return;
-    }
-    
-    // Vérifier qu'au moins une note est donnée
-    const hasRating = Object.values(ratings).some(rating => rating > 0);
-    if (!hasRating) {
-      setError("Veuillez attribuer au moins une note");
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Préparer les informations d'achat (obtenues de Claude, mais non stockées dans receipts)
-      const purchaseInfo = {
-        price: purchasePrice ? parseFloat(purchasePrice) : null,
-        date: purchaseDate || null,
-        location: location,
-        storeName: storeName || null,
-        authorizeSharing: authorizeReceiptSharing
-      };
-      
-      // Envoyer l'avis et les informations extraites qui seront stockées dans la table product_reviews
-      const { success, error } = await addProductReview(
-        userDetails.id,
-        product.code,
-        comment,
-        receiptId,
-        ratings,
-        purchaseInfo
-      );
-      
-      if (success) {
-        setSuccess(true);
-        
-        // Attendre 2 secondes puis appeler onSuccess
-        setTimeout(() => {
-          if (onSuccess) {
-            onSuccess();
-          }
-        }, 2000);
+    // Si l'article sélectionné a été modifié, mettre à jour la sélection
+    if (selectedItem) {
+      const updatedSelectedItem = updatedItems.find(item => item.id === selectedItem.id);
+      if (updatedSelectedItem) {
+        setSelectedItem(updatedSelectedItem);
       } else {
-        setError(error || "Une erreur est survenue lors de l'envoi de votre avis");
+        // L'article sélectionné a été supprimé
+        setSelectedItem(null);
       }
-    } catch (err) {
-      setError("Une erreur est survenue lors de l'envoi de votre avis");
-      console.error(err);
-    } finally {
-      setLoading(false);
+    }
+    
+    // Mettre à jour le prix d'achat en fonction de l'article sélectionné
+    if (selectedItem) {
+      setPurchasePrice(selectedItem.prix_total.toString());
     }
   };
   
+  // Gestion de la sélection d'un article
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    
+    // Mettre à jour le prix d'achat avec le prix de l'article sélectionné
+    if (item && item.prix_total) {
+      setPurchasePrice(item.prix_total.toString());
+    }
+  };
+  
+  // Gestion de l'envoi de l'avis
+const handleSubmitReview = async (e) => {
+  e.preventDefault();
+  
+  // Vérifier que l'utilisateur est connecté
+  if (!currentUser || !userDetails) {
+    setError("Vous devez être connecté pour laisser un avis");
+    return;
+  }
+  
+  // Vérifier qu'au moins une note est donnée
+  const hasRating = Object.values(ratings).some(rating => rating > 0);
+  if (!hasRating) {
+    setError("Veuillez attribuer au moins une note");
+    return;
+  }
+  
+  setLoading(true);
+  setError(null);
+  
+  try {
+    // Préparer les informations d'achat
+    const purchaseInfo = {
+      price: purchasePrice ? parseFloat(purchasePrice) : null,
+      date: purchaseDate || null,
+      location: location,
+      storeName: storeName || null,
+      authorizeSharing: authorizeReceiptSharing,
+      // Transmettre les articles du ticket
+      receiptItems: receiptItems,
+      // Transmettre l'ID de l'article sélectionné
+      selectedItemId: selectedItem ? selectedItem.id : null
+    };
+    
+    console.log("Envoi de l'avis avec les infos d'achat:", purchaseInfo);
+    
+    // Envoyer l'avis et les informations extraites
+    const { success, error } = await addProductReview(
+      userDetails.id,
+      product.code,
+      comment,
+      receiptId,
+      ratings,
+      purchaseInfo
+    );
+    
+    if (success) {
+      setSuccess(true);
+      
+      // Attendre 2 secondes puis appeler onSuccess
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 2000);
+    } else {
+      setError(error || "Une erreur est survenue lors de l'envoi de votre avis");
+    }
+  } catch (err) {
+    setError("Une erreur est survenue lors de l'envoi de votre avis");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
   // Rendu des étoiles pour un critère
   const renderStars = (criteriaId, interactive = false) => {
     const rating = ratings[criteriaId] || 0;
@@ -360,7 +401,7 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
                 Ticket de caisse validé
               </p>
               
-              {/* Option pour autoriser le partage du ticket */}
+              {/* Option pour autoriser le partage du ticket - cochée par défaut */}
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -380,7 +421,35 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
             </div>
           )}
           
-          {/* Informations d'achat - N'apparaissent qu'après l'analyse AI */}
+          {/* NOUVEAU: Sélection et édition des articles du ticket */}
+          {receiptUploaded && receiptItems.length > 0 && (
+            <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+              <h4 className="font-medium text-gray-800 mb-3">
+                Articles détectés sur votre ticket
+              </h4>
+              <p className="text-sm text-gray-600 mb-3">
+                Vous pouvez sélectionner l'article correspondant à ce produit, ou modifier les informations détectées si nécessaire.
+              </p>
+              
+              <ReceiptItemSelector 
+                items={receiptItems}
+                onChange={handleReceiptItemsChange}
+                selectedItem={selectedItem}
+                onSelect={handleSelectItem}
+              />
+              
+              {selectedItem && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                  <p className="text-blue-700 text-sm font-medium">Article sélectionné : <strong>{selectedItem.designation}</strong></p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Le prix d'achat de cet article ({formatPrice(selectedItem.prix_total)}) sera utilisé pour votre avis.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Informations d'achat extraites */}
           {aiDataAvailable && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-gray-800 mb-3">Informations d'achat extraites</h4>
@@ -410,42 +479,11 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
                   </div>
                 )}
                 
-                {/* Localisation */}
-                {location && (
-                  <div className="flex items-center">
-                    <MapPin size={16} className="mr-2 text-green-600" />
-                    <span className="text-gray-700">Position utilisée : <strong>Votre position actuelle</strong></span>
-                  </div>
-                )}
-                
                 {/* Message informatif */}
                 <p className="text-xs text-gray-500 italic mt-1">
                   Ces informations ont été extraites automatiquement de votre ticket de caisse par IA.
                 </p>
               </div>
-              
-              {/* Bouton d'utilisation de la position actuelle si nécessaire */}
-              {!location && (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => setUseCurrentLocation(!useCurrentLocation)}
-                    className={`flex items-center px-3 py-2 rounded-md border text-sm ${
-                      useCurrentLocation 
-                        ? 'bg-green-100 border-green-300 text-green-700' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <MapPin size={16} className="mr-1" />
-                    {useCurrentLocation 
-                      ? locationLoading 
-                        ? 'Chargement...' 
-                        : 'Position actuelle' 
-                      : 'Ajouter ma position'
-                    }
-                  </button>
-                </div>
-              )}
             </div>
           )}
           

@@ -158,6 +158,9 @@ export const getProductReviews = async (productCode, limit = 10, offset = 0) => 
  * @param {object} purchaseInfo - Informations sur l'achat
  * @returns {Promise<object>} - Résultat de l'opération
  */
+// Modification de la fonction addProductReview dans src/services/reviewService.js
+// Ajoutez la gestion des articles du ticket
+
 export const addProductReview = async (
   userId, 
   productCode, 
@@ -207,7 +210,8 @@ export const addProductReview = async (
       date,
       location,
       storeName,
-      authorizeSharing = false
+      authorizeSharing = false,
+      receiptItems = [] // Récupération des articles du ticket
     } = purchaseInfo;
     
     // Récupérer les ratings spécifiques par critère
@@ -233,31 +237,30 @@ export const addProductReview = async (
     
     const averageRating = totalWeight > 0 ? Number((weightedSum / totalWeight).toFixed(2)) : 0;
     
-    // Préparer l'objet d'avis à insérer en fonction des colonnes présentes dans le schéma
-    const reviewObject = {
-      user_id: userId,
-      product_code: productCode,
-      comment: comment,
-      receipt_id: receiptId,
-      is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
-      status: 'pending', // Les avis sont en attente de modération par défaut
-      average_rating: averageRating,
-      taste_rating: tasteRating,
-      quantity_rating: quantityRating,
-      price_rating: priceRating,
-      authorize_receipt_sharing: authorizeSharing
-    };
-    
-    // Ajouter les champs d'information d'achat s'ils existent
-    if (price) reviewObject.purchase_price = price;
-    if (date) reviewObject.purchase_date = date;
-    if (storeName) reviewObject.store_name = storeName;
-    if (location) reviewObject.purchase_location = `(${location.lat},${location.lng})`;
-    
-    // Insérer l'avis
+    // Insérer l'avis avec les nouveaux champs
     const { data: newReview, error: reviewError } = await supabase
       .from('product_reviews')
-      .insert([reviewObject])
+      .insert([
+        {
+          user_id: userId,
+          product_code: productCode,
+          comment: comment,
+          receipt_id: receiptId,
+          is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
+          status: 'pending', // Les avis sont en attente de modération par défaut
+          // Nouveaux champs pour les notes spécifiques
+          average_rating: averageRating,
+          taste_rating: tasteRating,
+          quantity_rating: quantityRating,
+          price_rating: priceRating,
+          // Informations d'achat
+          authorize_receipt_sharing: authorizeSharing,
+          purchase_price: price,
+          purchase_date: date,
+          purchase_location: location ? `(${location.lat},${location.lng})` : null,
+          store_name: storeName
+        }
+      ])
       .select()
       .single();
       
@@ -275,6 +278,44 @@ export const addProductReview = async (
       .insert(ratingsToInsert);
       
     if (ratingsError) throw ratingsError;
+
+    // NOUVEAU: Mettre à jour les articles du ticket pour les lier à l'avis
+    if (receiptId && receiptItems && receiptItems.length > 0) {
+      console.log("Articles du ticket à associer:", receiptItems);
+      
+      // Pour chaque article, vérifier s'il existe déjà dans receipt_items
+      // Si non, l'insérer; si oui, le mettre à jour
+      for (const item of receiptItems) {
+        if (item.id && item.id.startsWith('ai-item-') || item.id.startsWith('temp-')) {
+          // C'est un ID temporaire, il faut insérer un nouvel article
+          const newItem = {
+            receipt_id: receiptId,
+            designation: item.designation,
+            product_code: productCode, // Lier au produit de l'avis
+            quantite: item.quantite,
+            prix_unitaire: item.prix_unitaire,
+            prix_total: item.prix_total,
+            // Si l'article est sélectionné, marquer dans la base de données
+            is_selected: item.id === purchaseInfo.selectedItemId
+          };
+          
+          await supabase.from('receipt_items').insert([newItem]);
+        } else {
+          // C'est un ID existant, mettre à jour l'article
+          const updateItem = {
+            designation: item.designation,
+            product_code: productCode, // Lier au produit de l'avis
+            quantite: item.quantite,
+            prix_unitaire: item.prix_unitaire,
+            prix_total: item.prix_total,
+            // Si l'article est sélectionné, marquer dans la base de données
+            is_selected: item.id === purchaseInfo.selectedItemId
+          };
+          
+          await supabase.from('receipt_items').update(updateItem).eq('id', item.id);
+        }
+      }
+    }
     
     // Mettre à jour les statistiques du produit
     await updateProductStats(productCode);
