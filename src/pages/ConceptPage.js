@@ -1,5 +1,5 @@
-// src/page/ConceptPage.js
-import React from 'react';
+// src/pages/ConceptPage.js
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { 
   Lightbulb, 
@@ -7,21 +7,270 @@ import {
   Users, 
   Shield, 
   Check, 
-  Leaf, 
+  Camera, 
   Star, 
-  Search, 
-  Zap, 
-  BarChart, 
-  Lock, 
-  UserCheck,
-  MessageSquare,
-  Share2,
-  RefreshCw
+  MessageSquare, 
+  ShoppingBag,
+  ArrowRight,
+  ChevronRight
 } from 'lucide-react';
 
-const Concept = () => {
+const ConceptPage = () => {
+  const [activeSection, setActiveSection] = useState(null);
+
+  const toggleSection = (section) => {
+    setActiveSection(activeSection === section ? null : section);
+  };
+
+  // Principales caractéristiques de Fydo
+  const keyFeatures = [
+    {
+      id: 'scanning',
+      icon: <Camera size={24} className="text-green-800" />,
+      title: "Scan instantané",
+      description: "Scannez simplement le code-barres d'un produit alimentaire ou cosmétique pour accéder à toutes ses informations et aux avis des utilisateurs."
+    },
+    {
+      id: 'reviews',
+      icon: <Star size={24} className="text-amber-500 fill-amber-500" />,
+      title: "Avis vérifiés",
+      description: "Chaque avis est lié à un achat réel, vérifié par ticket de caisse, garantissant des retours d'expérience authentiques."
+    },
+    {
+      id: 'sharing',
+      icon: <MessageSquare size={24} className="text-green-800" />,
+      title: "Partagez votre expérience",
+      description: "Donnez votre avis sur les produits que vous achetez et aidez d'autres consommateurs à faire de meilleurs choix."
+    },
+    {
+      id: 'verification',
+      icon: <Shield size={24} className="text-green-800" />,
+      title: "Preuve d'achat",
+      description: "Notre système de vérification par ticket de caisse assure que tous les avis proviennent de véritables acheteurs."
+    }
+  ];
+
+  // Sections de contenu détaillé
+  const contentSections = [
+    {
+      id: 'mission',
+      icon: <Target size={28} />,
+      title: "Notre Mission",
+      content: (
+        <div className="space-y-4">
+          <p className="text-green-800 text-lg font-medium">
+            Permettre aux consommateurs de partager leurs retours d'expérience authentiques sur les produits du quotidien.
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-start">
+              <div className="bg-green-100 p-2 rounded-full mr-3 flex-shrink-0">
+                <Check className="text-green-800" size={16} />
+              </div>
+              <p className="text-gray-700">
+                Créer un espace où les consommateurs peuvent s'exprimer sur la qualité, le goût, le rapport qualité-prix et d'autres critères pertinents sur leurs achats quotidiens.
+              </p>
+            </div>
+            <div className="flex items-start">
+              <div className="bg-green-100 p-2 rounded-full mr-3 flex-shrink-0">
+                <Check className="text-green-800" size={16} />
+              </div>
+              <p className="text-gray-700">
+                Garantir la fiabilité de chaque avis grâce à la vérification par ticket de caisse, éliminant ainsi les doutes sur leur authenticité.
+              </p>
+            </div>
+            <div className="flex items-start">
+              <div className="bg-green-100 p-2 rounded-full mr-3 flex-shrink-0">
+                <Check className="text-green-800" size={16} />
+              </div>
+              <p className="text-gray-700">
+                Aider les marques à comprendre les attentes réelles de leurs clients pour mieux y répondre à travers leurs produits.
+              </p>
+            </div>
+            <div className="flex items-start">
+              <div className="bg-green-100 p-2 rounded-full mr-3 flex-shrink-0">
+                <Check className="text-green-800" size={16} />
+              </div>
+              <p className="text-gray-700">
+                Faciliter le choix des consommateurs en leur donnant accès à des retours d'expérience pertinents avant leurs achats.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'howItWorks',
+      icon: <Lightbulb size={28} />,
+      title: "Comment ça fonctionne",
+      content: (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <Camera className="text-green-800" size={24} />
+            </div>
+            <h3 className="font-semibold text-green-800 mb-2">1. Scannez</h3>
+            <p className="text-gray-700">
+              Utilisez votre smartphone pour scanner le code-barres d'un produit alimentaire ou cosmétique et découvrez ce que d'autres consommateurs en pensent.
+            </p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+              <Star className="text-amber-600 fill-amber-500" size={24} />
+            </div>
+            <h3 className="font-semibold text-green-800 mb-2">2. Découvrez</h3>
+            <p className="text-gray-700">
+              Accédez aux avis détaillés sur le rapport qualité-prix, le goût, la texture - des retours d'expérience réels basés sur des achats vérifiés.
+            </p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <MessageSquare className="text-green-800" size={24} />
+            </div>
+            <h3 className="font-semibold text-green-800 mb-2">3. Partagez</h3>
+            <p className="text-gray-700">
+              Après avoir essayé un produit, donnez votre propre avis. Un simple scan de votre ticket de caisse authentifie votre évaluation et la rend précieuse.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'community',
+      icon: <Users size={28} />,
+      title: "Une communauté de confiance",
+      content: (
+        <div className="space-y-6">
+          <p className="text-gray-700">
+            Fydo est une communauté collaborative où chaque membre contribue à améliorer l'expérience collective. Notre système de statut valorise les contributeurs réguliers et fiables :
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-amber-600">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                  <Star className="text-amber-600 fill-amber-600" size={20} />
+                </div>
+                <h4 className="font-semibold text-amber-800">Bronze</h4>
+              </div>
+              <p className="text-sm text-gray-600">
+                Niveau débutant pour les nouveaux membres qui commencent à partager leurs avis.
+              </p>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-gray-400">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                  <Star className="text-gray-500 fill-gray-500" size={20} />
+                </div>
+                <h4 className="font-semibold text-gray-700">Argent</h4>
+              </div>
+              <p className="text-sm text-gray-600">
+                Contributeurs actifs avec des avis réguliers et appréciés par la communauté.
+              </p>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-yellow-500">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
+                  <Star className="text-yellow-600 fill-yellow-500" size={20} />
+                </div>
+                <h4 className="font-semibold text-yellow-800">Or</h4>
+              </div>
+              <p className="text-sm text-gray-600">
+                Membres expérimentés reconnus pour la qualité et la pertinence de leurs contributions.
+              </p>
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-sm border-t-4 border-blue-400">
+              <div className="flex items-center mb-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                  <Star className="text-blue-600 fill-blue-500" size={20} />
+                </div>
+                <h4 className="font-semibold text-blue-700">Diamant</h4>
+              </div>
+              <p className="text-sm text-gray-600">
+                Experts et contributeurs d'élite dont les avis sont particulièrement valorisés.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'products',
+      icon: <ShoppingBag size={28} />,
+      title: "Produits ciblés",
+      content: (
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Fydo se concentre sur deux catégories essentielles qui font partie de votre quotidien :
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="font-semibold text-green-800 mb-3 flex items-center">
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-2">
+                  <ShoppingBag className="text-green-800" size={16} />
+                </div>
+                Produits alimentaires
+              </h3>
+              <ul className="space-y-2">
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Aliments préparés et transformés</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Boissons et produits laitiers</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Snacks et confiseries</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Compléments alimentaires</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="font-semibold text-green-800 mb-3 flex items-center">
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-2">
+                  <ShoppingBag className="text-green-800" size={16} />
+                </div>
+                Produits cosmétiques
+              </h3>
+              <ul className="space-y-2">
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Soins de la peau et du corps</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Maquillage et produits de beauté</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Parfums et eaux de toilette</span>
+                </li>
+                <li className="flex items-center">
+                  <ChevronRight size={16} className="text-green-600 mr-1" />
+                  <span className="text-gray-700">Produits d'hygiène personnelle</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )
+    }
+  ];
+
   return (
-    <div className="bg-green-50 min-h-screen pt-24 pb-16">
+    <div className="min-h-screen bg-green-50 pt-20 pb-12">
       <Helmet>
         <title>Notre Concept | Fydo</title>
         <meta name="description" content="Découvrez comment Fydo permet aux consommateurs de partager leurs expériences authentiques sur les produits alimentaires et cosmétiques du quotidien" />
@@ -29,266 +278,129 @@ const Concept = () => {
 
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-green-800 mb-6">Notre Concept</h1>
-          
-          {/* Introduction */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
-                <Lightbulb className="mr-2" size={22} />
-                La Genèse de Fydo
-              </h2>
-              
-              <div className="space-y-4 text-gray-700">
-                <p>
-                  Fydo est né d'un constat simple : les consommateurs n'ont que très peu d'occasions de partager leurs expériences authentiques sur les produits qu'ils achètent au quotidien.
-                </p>
-                
-                <p className="font-medium text-green-700">
-                  Qui n'a jamais été déçu par un changement de recette d'un produit favori, surpris par un rapport qualité-prix décevant, ou au contraire enchanté par une découverte qui mérite d'être partagée ?
-                </p>
-                
-                <p>
-                  Jusqu'à présent, ces précieux retours d'expérience restaient souvent confinés à notre cercle proche, sans possibilité d'être entendus par d'autres consommateurs ou par les marques elles-mêmes.
-                </p>
-                
-                <p>
-                  C'est pourquoi nous avons créé Fydo, la première plateforme communautaire d'avis vérifiés par ticket de caisse, permettant aux consommateurs de partager leurs expériences réelles sur les produits alimentaires et cosmétiques, et ainsi d'aider à l'amélioration continue de notre quotidien.
-                </p>
-              </div>
-            </div>
+          {/* En-tête de page avec animation subtile */}
+          <div className="text-center mb-12 opacity-0 animate-fade-in">
+            <h1 className="text-4xl font-bold text-green-800 mb-4">Notre Concept</h1>
+            <p className="text-xl text-green-700 max-w-2xl mx-auto">
+              Une communauté qui révolutionne vos choix de produits grâce à des avis authentiques et vérifiés
+            </p>
           </div>
           
-          {/* Mission */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
-                <Target className="mr-2" size={22} />
-                Notre Mission
-              </h2>
-              
-              <div className="space-y-4 text-gray-700">
-                <p className="font-medium text-green-600 text-lg">
-                  Permettre aux consommateurs de partager leurs retours d'expérience authentiques sur les produits du quotidien.
-                </p>
-                
-                <p>
-                  Fydo s'est donné pour mission de :
-                </p>
-                
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Créer un espace où les consommateurs peuvent s'exprimer sur la qualité, le goût, le rapport qualité-prix et d'autres critères pertinents sur leurs achats quotidiens</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Garantir la fiabilité de chaque avis grâce à la vérification par ticket de caisse, éliminant ainsi les doutes sur leur authenticité</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Aider les marques à comprendre les attentes réelles de leurs clients pour mieux y répondre à travers leurs produits</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Faciliter le choix des consommateurs en leur donnant accès à des retours d'expérience pertinents avant leurs achats</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          
-          {/* Comment ça fonctionne */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-6">
-                <Zap className="mr-2" size={22} />
-                Comment Fonctionne Fydo
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-green-50 p-5 rounded-lg">
-                  <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                    <Search className="text-green-600" size={24} />
-                  </div>
-                  <h3 className="font-semibold text-green-800 mb-2">1. Scannez</h3>
+          {/* Bannière à propos du concept */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-10">
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row items-center">
+                <div className="w-full md:w-1/2 mb-6 md:mb-0">
+                  <h2 className="text-2xl font-bold text-green-800 mb-2">
+                    La Genèse de Fydo
+                  </h2>
+                  <p className="text-gray-700 mb-4">
+                    Fydo est né d'un constat simple : les consommateurs n'ont que très peu d'occasions de partager leurs expériences authentiques sur les produits qu'ils achètent au quotidien.
+                  </p>
+                  <p className="text-green-700 font-medium mb-4">
+                    Qui n'a jamais été déçu par un changement de recette d'un produit favori ou enchanté par une découverte qui mérite d'être partagée ?
+                  </p>
                   <p className="text-gray-700">
-                    Utilisez votre smartphone pour scanner le code-barres d'un produit alimentaire ou cosmétique. Découvrez ce que d'autres consommateurs pensent de sa nouvelle recette, de son goût ou de son efficacité.
+                    C'est pourquoi nous avons créé Fydo, la première plateforme communautaire d'avis vérifiés par ticket de caisse, permettant aux consommateurs de partager leurs expériences réelles.
                   </p>
                 </div>
-                
-                <div className="bg-green-50 p-5 rounded-lg">
-                  <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                    <Star className="text-green-600" size={24} />
-                  </div>
-                  <h3 className="font-semibold text-green-800 mb-2">2. Découvrez</h3>
-                  <p className="text-gray-700">
-                    Accédez aux avis détaillés sur le rapport qualité-prix, le goût après reformulation, la texture d'un cosmétique - des retours d'expérience réels basés sur des achats vérifiés.
-                  </p>
-                </div>
-                
-                <div className="bg-green-50 p-5 rounded-lg">
-                  <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                    <MessageSquare className="text-green-600" size={24} />
-                  </div>
-                  <h3 className="font-semibold text-green-800 mb-2">3. Partagez votre avis</h3>
-                  <p className="text-gray-700">
-                    Après avoir essayé un produit, donnez votre propre retour d'expérience. Un simple scan de votre ticket de caisse authentifie votre avis, le rendant encore plus précieux pour la communauté et les marques.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Ce qui nous différencie */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
-                <BarChart className="mr-2" size={22} />
-                Ce Qui Nous Différencie
-              </h2>
-              
-              <div className="space-y-6 text-gray-700">
-                <div className="flex items-start">
-                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <Shield className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Des avis 100% vérifiés</h3>
-                    <p>
-                      Chaque avis sur Fydo est lié à un achat réel, vérifié par ticket de caisse. Cette approche garantit des retours d'expérience authentiques, basés sur une utilisation réelle du produit.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <Share2 className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Un canal de communication direct</h3>
-                    <p>
-                      Fydo crée un pont entre consommateurs et marques, permettant aux premiers d'exprimer leurs impressions réelles et aux secondes de mieux comprendre comment leurs produits sont perçus au quotidien.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <UserCheck className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Une communauté de confiance</h3>
-                    <p>
-                      Notre système de statut (Bronze, Argent, Or, Diamant) valorise les contributeurs réguliers et fiables, créant ainsi un cercle vertueux où les avis les plus utiles sont mis en avant.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start">
-                  <div className="bg-blue-100 p-2 rounded-full mr-4 flex-shrink-0">
-                    <RefreshCw className="text-blue-600" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-800 mb-1">Un catalyseur d'amélioration</h3>
-                    <p>
-                      Quand des consommateurs notent qu'un changement de recette déplaît ou qu'un packaging pose problème, les marques peuvent réagir et adapter leurs produits. Fydo favorise ainsi un dialogue constructif pour de meilleurs produits.
-                    </p>
+                <div className="w-full md:w-1/2 md:pl-8 flex justify-center">
+                  <div className="w-64 h-64 bg-green-100 rounded-full flex items-center justify-center p-6 relative">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-green-200 to-green-50 animate-slow-pulse"></div>
+                    <div className="relative z-10 text-center">
+                      <div className="text-green-800 font-bold text-3xl mb-1">Fydo</div>
+                      <div className="text-amber-500 text-4xl">★</div>
+                      <p className="text-sm text-green-700 mt-3 max-w-[150px] mx-auto">
+                        La communauté qui révolutionne vos choix de produits
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Nos valeurs */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
-                <Users className="mr-2" size={22} />
-                Nos Valeurs
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-700 mb-2">Transparence</h3>
-                  <p className="text-gray-700">
-                    Nous croyons que la transparence dans les retours d'expérience bénéficie autant aux consommateurs qu'aux marques soucieuses de s'améliorer.
-                  </p>
+          {/* Caractéristiques clés - grille en 4 colonnes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+            {keyFeatures.map((feature) => (
+              <div 
+                key={feature.id}
+                className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mb-4">
+                  {feature.icon}
                 </div>
-                
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-700 mb-2">Authenticité</h3>
-                  <p className="text-gray-700">
-                    Chaque avis sur Fydo provient d'une expérience réelle et vérifiée, garantissant la pertinence des informations partagées.
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-700 mb-2">Communauté</h3>
-                  <p className="text-gray-700">
-                    Fydo est une communauté collaborative où chaque contribution enrichit l'expérience de tous et participe à l'amélioration des produits.
-                  </p>
-                </div>
-                
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-700 mb-2">Amélioration continue</h3>
-                  <p className="text-gray-700">
-                    Nous croyons que le feedback constructif des consommateurs est l'un des meilleurs moteurs de progrès pour les produits du quotidien.
-                  </p>
-                </div>
+                <h3 className="font-semibold text-green-800 mb-2">{feature.title}</h3>
+                <p className="text-gray-700 text-sm">{feature.description}</p>
               </div>
-            </div>
+            ))}
           </div>
           
-          {/* Exemples concrets */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-green-700 flex items-center mb-4">
-                <Lightbulb className="mr-2" size={22} />
-                Situations où Fydo est utile
-              </h2>
-              
-              <div className="space-y-4 text-gray-700">
-                <p>Fydo vous aide lorsque :</p>
+          {/* Sections de contenu accordéon */}
+          <div className="space-y-4">
+            {contentSections.map((section) => (
+              <div 
+                key={section.id} 
+                className="bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-300"
+              >
+                <button 
+                  className={`w-full text-left p-6 flex items-center justify-between focus:outline-none ${
+                    activeSection === section.id ? 'bg-green-50 border-b border-green-100' : ''
+                  }`}
+                  onClick={() => toggleSection(section.id)}
+                >
+                  <div className="flex items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                      activeSection === section.id ? 'bg-amber-100' : 'bg-green-50'
+                    }`}>
+                      {/* Clone l'icône et applique le remplissage (fill) lorsque la section est active */}
+                      {React.cloneElement(section.icon, { 
+                        className: activeSection === section.id 
+                          ? "text-amber-600 fill-amber-500" 
+                          : "text-green-800"
+                      })}
+                    </div>
+                    <h2 className="text-xl font-semibold text-green-800">{section.title}</h2>
+                  </div>
+                  <ArrowRight 
+                    size={20} 
+                    className={`transition-transform ${
+                      activeSection === section.id 
+                        ? 'text-amber-600 transform rotate-90' 
+                        : 'text-green-800'
+                    }`} 
+                  />
+                </button>
                 
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Vous remarquez qu'une marque a changé la recette de votre biscuit préféré et vous voulez savoir si d'autres consommateurs l'ont également constaté</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Vous hésitez entre deux shampoings et souhaitez connaître l'avis de personnes qui les ont réellement utilisés sur des critères comme l'efficacité ou le parfum</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Vous trouvez qu'un produit a un rapport qualité-prix discutable et vous voulez partager cette observation pour aider d'autres consommateurs</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={18} className="text-green-500 mt-1 mr-2 flex-shrink-0" />
-                    <span>Vous avez découvert un excellent produit et souhaitez le faire connaître à d'autres personnes avec des goûts similaires</span>
-                  </li>
-                </ul>
+                {activeSection === section.id && (
+                  <div className="p-6 animate-fade-in">
+                    {section.content}
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
           </div>
           
-          {/* Rejoignez-nous */}
-          <div className="bg-green-600 rounded-xl shadow-md overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-white flex items-center mb-4">
-                Partagez vos expériences avec Fydo
+          {/* Bannière d'appel à l'action */}
+          <div className="mt-10 bg-gradient-to-r from-green-800 to-green-700 rounded-xl shadow-md overflow-hidden">
+            <div className="p-6 md:p-8 text-white">
+              <h2 className="text-2xl font-bold mb-4 text-center">
+                Rejoignez la communauté Fydo
               </h2>
-              
-              <p className="text-green-100 mb-4">
-                Rejoignez notre communauté et contribuez à améliorer les produits que nous utilisons tous les jours. Votre expérience compte et peut réellement faire la différence.
+              <p className="text-green-100 mb-6 text-center max-w-xl mx-auto">
+                Partagez vos expériences avec des milliers d'autres consommateurs et contribuez à améliorer les produits que nous utilisons tous les jours.
               </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a href="/signup" className="bg-white hover:bg-gray-100 text-green-700 font-bold py-3 px-6 rounded-lg transition duration-300 text-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a 
+                  href="/signup" 
+                  className="bg-white text-green-800 font-medium py-3 px-6 rounded-lg hover:bg-green-50 transition-colors text-center"
+                >
                   Créer un compte
                 </a>
-                <a href="/recherche-filtre" className="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-center">
+                <a 
+                  href="/recherche-filtre" 
+                  className="bg-amber-500 text-white font-medium py-3 px-6 rounded-lg hover:bg-amber-600 transition-colors text-center"
+                >
                   Essayer le scan
                 </a>
               </div>
@@ -296,8 +408,30 @@ const Concept = () => {
           </div>
         </div>
       </div>
+      
+      {/* Styles pour les animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slowPulse {
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.8; }
+        }
+        
+        .animate-fade-in {
+          animation: fadeIn 0.6s ease-out forwards;
+        }
+        
+        .animate-slow-pulse {
+          animation: slowPulse 3s infinite ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };
 
-export default Concept;
+export default ConceptPage;

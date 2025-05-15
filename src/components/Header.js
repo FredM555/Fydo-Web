@@ -3,7 +3,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { User, LogOut, ChevronDown, Clock, Star, MessageSquare, Heart, Award, Crown, Menu, X as XIcon, Trophy } from 'lucide-react';
+import { 
+  User, 
+  LogOut, 
+  ChevronDown, 
+  Clock, 
+  Star, 
+  MessageSquare, 
+  Heart, 
+  Award, 
+  Menu, 
+  X, 
+  Trophy,
+  Search,
+  ShoppingBag,
+  Info,
+  Phone
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import fydoLogo from '../assets/images/Fydo-logo.png';
 
@@ -59,26 +75,44 @@ const Header = () => {
     }
   };
 
-  // Obtenir la couleur associée au statut de l'utilisateur
-  const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-      case 'bronze': return 'bg-amber-600 text-white';
-      case 'argent': case 'silver': return 'bg-gray-400 text-white';
-      case 'or': case 'gold': return 'bg-yellow-500 text-white';
-      case 'diamant': case 'diamond': return 'bg-blue-400 text-white';
-      default: return 'bg-amber-600 text-white';
-    }
+  // Vérifier si l'URL actuelle contient un segment spécifique
+  const isActivePath = (path) => {
+    return location.pathname === path || 
+           (path !== '/' && location.pathname.startsWith(path));
   };
 
-  // Obtenir l'icône associée au statut de l'utilisateur
-  const getStatusIcon = (status) => {
+  // Obtenir le badge et l'icône selon le statut
+  const getBadgeInfo = (status) => {
+    let color, bg, icon;
+    
     switch(status?.toLowerCase()) {
-      case 'bronze': return <Award size={12} />;
-      case 'argent': case 'silver': return <Award size={12} />;
-      case 'or': case 'gold': return <Award size={12} />;
-      case 'diamant': case 'diamond': return <Crown size={12} />;
-      default: return <Award size={12} />;
+      case 'bronze':
+        color = 'text-amber-800';
+        bg = 'bg-amber-500';
+        icon = <Award size={12} />;
+        break;
+      case 'argent': case 'silver':
+        color = 'text-gray-700';
+        bg = 'bg-gray-400';
+        icon = <Award size={12} />;
+        break;
+      case 'or': case 'gold':
+        color = 'text-amber-800';
+        bg = 'bg-yellow-500';
+        icon = <Award size={12} />;
+        break;
+      case 'diamant': case 'diamond':
+        color = 'text-blue-700';
+        bg = 'bg-blue-400';
+        icon = <Award size={12} />;
+        break;
+      default:
+        color = 'text-amber-800';
+        bg = 'bg-amber-500';
+        icon = <Award size={12} />;
     }
+    
+    return { color, bg, icon };
   };
 
   // Vérifier si l'URL actuelle contient "recherche" pour appliquer un style spécifique
@@ -88,7 +122,7 @@ const Header = () => {
   const isChallengesPage = location.pathname === '/challenges';
 
   return (
-    <nav className={`bg-white shadow-md py-2 fixed top-0 left-0 right-0 z-50 ${isSearchPage ? 'search-page-header' : ''}`}>
+    <nav className={`bg-white shadow-md py-3 fixed top-0 left-0 right-0 z-50 ${isSearchPage ? 'search-page-header' : ''}`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
           {/* Logo Fydo */}
@@ -103,138 +137,193 @@ const Header = () => {
           </div>
 
           {/* Bouton du menu mobile */}
-          <button className="lg:hidden mobile-menu-button" onClick={toggleMobileMenu}>
-            {mobileMenuOpen ? <XIcon className="h-5 w-5 text-green-700" /> : <Menu className="h-5 w-5 text-green-700" />}
+          <button 
+            className="lg:hidden mobile-menu-button p-2 rounded-md hover:bg-green-50 text-green-800 transition-colors"
+            aria-label="Menu"
+            onClick={toggleMobileMenu}
+          >
+            {mobileMenuOpen ? 
+              <X className="h-6 w-6" /> : 
+              <Menu className="h-6 w-6" />
+            }
           </button>
 
-          {/* Liens de navigation desktop - version horizontale compacte */}
-          <div className="hidden lg:flex space-x-4 text-sm items-center">
-            <Link to="/concept" className="text-green-700 hover:text-green-500 px-2 py-1">Concept</Link>
-            <Link to="/fonctionnalites" className="text-green-700 hover:text-green-500 px-2 py-1">Fonctionnalités</Link>
-            <Link to="/recherche-filtre" className="text-green-700 hover:text-green-500 px-2 py-1">Scan/Recherche</Link>
+          {/* Liens de navigation desktop */}
+          <div className="hidden lg:flex items-center space-x-1">
+            <NavLink 
+              to="/concept" 
+              icon={<Info size={16} />}
+              active={isActivePath('/concept')}
+            >
+              Concept
+            </NavLink>
             
-            {/* Icône Challenges avec cercle - visible uniquement si l'utilisateur est connecté */}
+            <NavLink 
+              to="/fonctionnalites" 
+              icon={<ShoppingBag size={16} />}
+              active={isActivePath('/fonctionnalites')}
+            >
+              Fonctionnalités
+            </NavLink>
+            
+            <NavLink 
+              to="/recherche-filtre" 
+              icon={<Search size={16} />}
+              active={isActivePath('/recherche-filtre')}
+            >
+              Scan/Recherche
+            </NavLink>
+            
+            {/* Icône Challenges - Seulement l'icône trophée, plus distinctive */}
             {currentUser && (
-              <Link 
-                to="/challenges" 
-                className={`relative flex items-center justify-center w-8 h-8 ${
-                  isChallengesPage 
-                    ? 'bg-amber-500 text-white' 
-                    : 'bg-amber-100 text-amber-500 hover:bg-amber-200'
-                } rounded-full transition-all duration-200 shadow-sm hover:shadow transform hover:scale-105`}
-                aria-label="Challenges"
-              >
-                <Trophy size={18} className="relative z-10" />
-                {/* Effet de brillance subtil */}
-                <span className="absolute top-0 left-0 w-8 h-8 rounded-full bg-gradient-to-tr from-amber-300 to-transparent opacity-40"></span>
-              </Link>
+              <div className="mx-2">
+                <Link 
+                  to="/challenges"
+                  aria-label="Challenges"
+                  className={`relative flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 transform hover:scale-110 ${
+                    isChallengesPage 
+                      ? 'bg-green-800 text-white'
+                      : 'bg-amber-100 text-amber-600 hover:bg-amber-200 ring-2 ring-amber-300'
+                  }`}
+                >
+                  <Trophy 
+                    size={20} 
+                    className={`${isChallengesPage ? 'fill-white' : 'fill-amber-500'}`} 
+                  />
+                </Link>
+              </div>
             )}
             
-            <Link to="/top-produits" className="text-green-700 hover:text-green-500 px-2 py-1">Top Produits</Link>
-            <Link to="/abonnements" className="text-green-700 hover:text-green-500 px-2 py-1">Abonnements</Link>
-            <Link to="/contact" className="text-green-700 hover:text-green-500 px-2 py-1">Contact</Link>
+            <NavLink 
+              to="/top-produits" 
+              icon={<Star size={16} />}
+              active={isActivePath('/top-produits')}
+            >
+              Top Produits
+            </NavLink>
+            
+            <NavLink 
+              to="/abonnements" 
+              icon={<ShoppingBag size={16} />}
+              active={isActivePath('/abonnements')}
+            >
+              Abonnements
+            </NavLink>
+            
+            <NavLink 
+              to="/contact" 
+              icon={<Phone size={16} />}
+              active={isActivePath('/contact')}
+            >
+              Contact
+            </NavLink>
           </div>
         
-          {/* Partie utilisateur desktop - version compacte */}
+          {/* Partie utilisateur desktop */}
           <div className="hidden lg:block relative" ref={dropdownRef}>
             {currentUser ? (
               <div>
                 <button
                   onClick={toggleDropdown}
-                  className="flex items-center space-x-1 bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded-full transition-colors"
+                  className="flex items-center rounded-full py-1.5 px-2.5 bg-green-50 hover:bg-green-100 transition-colors"
+                  aria-expanded={dropdownOpen}
+                  aria-haspopup="true"
                 >
-                  <div className="w-6 h-6 rounded-full bg-green-200 flex items-center justify-center">
-                    <span className="text-green-700 text-xs font-semibold">
+                  {/* Avatar de l'utilisateur */}
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-green-800 text-white flex items-center justify-center text-sm font-medium mr-2">
                       {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'F'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-xs font-medium">{currentUser.displayName || 'Utilisateur'}</span>
-                    
-                    {/* Ajout des informations d'avis, favoris et statut - version minimale */}
-                    <div className="flex items-center space-x-1 text-xs text-gray-600">
-                      {/* Badge de statut */}
-                      {userDetails?.status && (
-                        <span className={`inline-flex items-center px-1 rounded-full text-xs font-medium ${getStatusColor(userDetails.status)}`}>
-                          {getStatusIcon(userDetails.status)}
-                          <span className="capitalize text-xs ml-0.5">{userDetails.status}</span>
-                        </span>
-                      )}
-                      
-                      {/* Nombre d'avis et favoris */}
-                      <span className="flex items-center text-xs">
-                        <Star size={8} className="text-amber-500 mr-0.5" />
-                        {userDetails?.reviewCount || 0}
-                      </span>
-                      <span className="flex items-center text-xs">
-                        <Heart size={8} className="text-pink-500 mr-0.5" />
-                        {userDetails?.favoriteCount || 0}
-                      </span>
                     </div>
+                    
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium text-green-800">
+                        {currentUser.displayName || 'Utilisateur'}
+                      </span>
+                      
+                      {/* Informations du profil */}
+                      <div className="flex items-center space-x-1.5">
+                        {/* Badge de statut */}
+                        {userDetails?.status && (
+                          <div className="flex items-center">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium text-white ${getBadgeInfo(userDetails.status).bg}`}>
+                              {getBadgeInfo(userDetails.status).icon}
+                              <span className="ml-0.5 capitalize">{userDetails.status}</span>
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Stats d'avis */}
+                        <span className="flex items-center text-xs text-green-700">
+                          <Star size={10} className="text-amber-500 mr-0.5 fill-amber-500" />
+                          {userDetails?.reviewCount || 0}
+                        </span>
+                        
+                        {/* Stats de favoris */}
+                        <span className="flex items-center text-xs text-green-700">
+                          <Heart size={10} className="text-pink-500 mr-0.5 fill-pink-500" />
+                          {userDetails?.favoriteCount || 0}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <ChevronDown 
+                      size={16} 
+                      className={`ml-1 text-green-800 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} 
+                    />
                   </div>
-                  <ChevronDown size={12} className={`transform transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
+                {/* Menu déroulant du profil */}
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-1 w-40 bg-white rounded-md shadow-md z-10">
-                    <Link 
-                      to="/profile" 
-                      className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                      <User size={12} className="mr-1 text-gray-500" />
-                      Voir profil
-                    </Link>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 py-1 ring-1 ring-black ring-opacity-5 divide-y divide-gray-100">
+                    <div className="py-1">
+                      <DropdownLink to="/profile" icon={<User size={16} />}>
+                        Voir profil
+                      </DropdownLink>
+                      
+                      <DropdownLink to="/historique-produits" icon={<Clock size={16} />}>
+                        Historique produits
+                      </DropdownLink>
+                    </div>
                     
-                    <Link 
-                      to="/historique-produits" 
-                      className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                      <Clock size={12} className="mr-1 text-gray-500" />
-                      Historique produits
-                    </Link>
+                    <div className="py-1">
+                      <DropdownLink to="/mes-favoris" icon={<Heart size={16} />}>
+                        Mes favoris
+                      </DropdownLink>
+                      
+                      <DropdownLink to="/mes-avis" icon={<MessageSquare size={16} />}>
+                        Mes avis
+                      </DropdownLink>
+                      
+                      <DropdownLink to="/challenges" icon={<Trophy size={16} />} special>
+                        Challenges
+                      </DropdownLink>
+                    </div>
                     
-                    <Link 
-                      to="/mes-favoris" 
-                      className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                      <Star size={12} className="mr-1 text-gray-500" />
-                      Mes favoris
-                    </Link>
-                    
-                    <Link 
-                      to="/mes-avis" 
-                      className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                      <MessageSquare size={12} className="mr-1 text-gray-500" />
-                      Mes avis
-                    </Link>
-                    
-                    {/* Lien Challenges dans le menu dropdown aussi */}
-                    <Link 
-                      to="/challenges" 
-                      className="flex items-center px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50"
-                    >
-                      <Trophy size={12} className="mr-1 text-amber-500" />
-                      Challenges
-                    </Link>
-                    
-                    <hr className="border-gray-200" />
-                    <button 
-                      onClick={handleLogout}
-                      className="flex items-center w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-gray-50"
-                    >
-                      <LogOut size={12} className="mr-1" />
-                      Déconnexion
-                    </button>
+                    <div className="py-1">
+                      <button 
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        <LogOut size={16} className="mr-2" />
+                        Déconnexion
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex space-x-1">
-                <Link to="/login" className="px-2 py-1 text-xs text-green-700 hover:bg-green-50 rounded-lg transition-colors">
+              <div className="flex items-center space-x-2">
+                <Link 
+                  to="/login" 
+                  className="text-sm text-green-800 hover:text-green-700 py-2 px-3 rounded-md transition-colors"
+                >
                   Connexion
                 </Link>
-                <Link to="/signup" className="px-2 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <Link 
+                  to="/signup" 
+                  className="text-sm bg-green-800 text-white py-2 px-3 rounded-md hover:bg-green-700 transition-colors"
+                >
                   Inscription
                 </Link>
               </div>
@@ -243,91 +332,121 @@ const Header = () => {
 
           {/* Menu mobile */}
           {mobileMenuOpen && (
-            <div ref={mobileMenuRef} className="lg:hidden absolute top-12 inset-x-0 z-50 bg-white shadow-lg rounded-b-lg">
-              <div className="px-4 py-3 space-y-3 divide-y divide-gray-200">
-                <div className="space-y-2">
-                  <Link to="/concept" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Concept</Link>
-                  <Link to="/fonctionnalites" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Fonctionnalités</Link>
-                  <Link to="/recherche-filtre" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Scan/Recherche</Link>
-                  <Link to="/top-produits" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Top Produits</Link>
-                  <Link to="/abonnements" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Abonnements</Link>
-                  <Link to="/contact" className="block text-green-700 hover:text-green-500 py-1.5 text-sm">Contact</Link>
+            <div 
+              ref={mobileMenuRef} 
+              className="lg:hidden absolute top-16 inset-x-0 z-50 bg-white shadow-lg rounded-b-lg"
+            >
+              <div className="p-4 space-y-4 divide-y divide-gray-100">
+                {/* Menu navigation mobile */}
+                <div className="grid grid-cols-1 gap-2 py-2">
+                  <MobileNavLink to="/concept" icon={<Info size={18} />} active={isActivePath('/concept')}>
+                    Concept
+                  </MobileNavLink>
                   
-                  {/* Challenge icon in mobile menu - only for logged in users */}
+                  <MobileNavLink to="/fonctionnalites" icon={<ShoppingBag size={18} />} active={isActivePath('/fonctionnalites')}>
+                    Fonctionnalités
+                  </MobileNavLink>
+                  
+                  <MobileNavLink to="/recherche-filtre" icon={<Search size={18} />} active={isActivePath('/recherche-filtre')}>
+                    Scan/Recherche
+                  </MobileNavLink>
+                  
+                  <MobileNavLink to="/top-produits" icon={<Star size={18} />} active={isActivePath('/top-produits')}>
+                    Top Produits
+                  </MobileNavLink>
+                  
+                  <MobileNavLink to="/abonnements" icon={<ShoppingBag size={18} />} active={isActivePath('/abonnements')}>
+                    Abonnements
+                  </MobileNavLink>
+                  
+                  <MobileNavLink to="/contact" icon={<Phone size={18} />} active={isActivePath('/contact')}>
+                    Contact
+                  </MobileNavLink>
+                  
+                  {/* Challenges - seulement pour utilisateurs connectés */}
                   {currentUser && (
-                    <Link 
+                    <MobileNavLink 
                       to="/challenges" 
-                      className={`flex items-center py-1.5 text-sm ${isChallengesPage ? 'text-amber-600 font-medium' : ''}`}
+                      icon={<Trophy size={18} className={`${isChallengesPage ? 'text-white' : 'text-amber-500 fill-amber-500'}`} />} 
+                      active={isActivePath('/challenges')}
+                      specialStyle="flex justify-between items-center bg-amber-50 text-amber-800 border border-amber-200"
                     >
-                      <div className={`w-6 h-6 rounded-full ${isChallengesPage ? 'bg-amber-100' : 'bg-gray-100'} flex items-center justify-center mr-2`}>
-                        <Trophy size={14} className="text-amber-500" />
-                      </div>
-                      <span>Challenges</span>
-                    </Link>
+                      Challenges
+                    </MobileNavLink>
                   )}
                 </div>
                 
-                <div className="pt-2">
+                {/* Section utilisateur mobile */}
+                <div className="pt-3">
                   {currentUser ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center py-1.5">
-                        <div className="w-6 h-6 rounded-full bg-green-200 flex items-center justify-center mr-2">
-                          <span className="text-green-700 text-xs font-semibold">
-                            {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'F'}
-                          </span>
+                    <div className="space-y-3">
+                      {/* Informations utilisateur */}
+                      <div className="flex items-center pb-2">
+                        <div className="w-10 h-10 rounded-full bg-green-800 text-white flex items-center justify-center text-lg font-medium mr-3">
+                          {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'F'}
                         </div>
                         <div>
-                          <div className="font-medium text-sm">{currentUser.displayName || 'Utilisateur'}</div>
-                          <div className="flex items-center space-x-1 text-xs text-gray-600 mt-0.5">
+                          <div className="font-medium text-green-800">
+                            {currentUser.displayName || 'Utilisateur'}
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 mt-0.5">
+                            {/* Badge de statut */}
                             {userDetails?.status && (
-                              <span className={`inline-flex items-center px-1 rounded-full text-xs font-medium ${getStatusColor(userDetails.status)}`}>
-                                {getStatusIcon(userDetails.status)}
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium text-white ${getBadgeInfo(userDetails.status).bg}`}>
+                                {getBadgeInfo(userDetails.status).icon}
                                 <span className="ml-0.5 capitalize">{userDetails.status}</span>
                               </span>
                             )}
-                            <span className="flex items-center">
-                              <Star size={8} className="text-amber-500 mr-0.5" />
-                              {userDetails?.reviewCount || 0}
-                            </span>
-                            <span className="flex items-center">
-                              <Heart size={8} className="text-pink-500 mr-0.5" />
-                              {userDetails?.favoriteCount || 0}
-                            </span>
+                            
+                            {/* Stats d'avis et favoris */}
+                            <div className="flex items-center space-x-2">
+                              <span className="flex items-center text-xs text-green-700">
+                                <Star size={12} className="text-amber-500 mr-0.5 fill-amber-500" />
+                                {userDetails?.reviewCount || 0}
+                              </span>
+                              <span className="flex items-center text-xs text-green-700">
+                                <Heart size={12} className="text-pink-500 mr-0.5 fill-pink-500" />
+                                {userDetails?.favoriteCount || 0}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
                       
-                      <Link to="/profile" className="flex items-center py-1.5 text-sm text-gray-700">
-                        <User size={14} className="mr-2 text-gray-500" />
-                        Voir profil
-                      </Link>
-                      
-                      <Link to="/historique-produits" className="flex items-center py-1.5 text-sm text-gray-700">
-                        <Clock size={14} className="mr-2 text-gray-500" />
-                        Historique produits
-                      </Link>
-                      
-                      <Link to="/mes-favoris" className="flex items-center py-1.5 text-sm text-gray-700">
-                        <Star size={14} className="mr-2 text-gray-500" />
-                        Mes favoris
-                      </Link>
-                      
-                      <Link to="/mes-avis" className="flex items-center py-1.5 text-sm text-gray-700">
-                        <MessageSquare size={14} className="mr-2 text-gray-500" />
-                        Mes avis
-                      </Link>
-                      
-                      <button onClick={handleLogout} className="flex items-center py-1.5 text-sm text-red-600">
-                        <LogOut size={14} className="mr-2" />
-                        Déconnexion
-                      </button>
+                      {/* Liens profil mobile */}
+                      <div className="grid grid-cols-1 gap-1">
+                        <MobileNavLink to="/profile" icon={<User size={18} />}>
+                          Voir profil
+                        </MobileNavLink>
+                        
+                        <MobileNavLink to="/historique-produits" icon={<Clock size={18} />}>
+                          Historique produits
+                        </MobileNavLink>
+                        
+                        <MobileNavLink to="/mes-favoris" icon={<Heart size={18} />}>
+                          Mes favoris
+                        </MobileNavLink>
+                        
+                        <MobileNavLink to="/mes-avis" icon={<MessageSquare size={18} />}>
+                          Mes avis
+                        </MobileNavLink>
+                        
+                        <button 
+                          onClick={handleLogout}
+                          className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <LogOut size={18} className="mr-2" />
+                          Déconnexion
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col space-y-2 py-2">
-                      <Link to="/login" className="px-3 py-1.5 text-center text-sm text-green-700 hover:bg-green-50 rounded-lg transition-colors">
+                      <Link to="/login" className="w-full text-center text-sm text-green-800 hover:bg-green-50 py-2 px-3 rounded-md transition-colors">
                         Connexion
                       </Link>
-                      <Link to="/signup" className="px-3 py-1.5 text-center text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                      <Link to="/signup" className="w-full text-center text-sm bg-green-800 text-white py-2 px-3 rounded-md hover:bg-green-700 transition-colors">
                         Inscription
                       </Link>
                     </div>
@@ -339,6 +458,55 @@ const Header = () => {
         </div>
       </div>
     </nav>
+  );
+};
+
+// Composant pour les liens de navigation desktop
+const NavLink = ({ to, children, icon, active, specialStyle }) => {
+  const baseStyle = "flex items-center text-sm font-medium px-3 py-2 rounded-md transition-colors";
+  const defaultStyle = specialStyle || "text-green-800 hover:text-green-700";
+  
+  return (
+    <Link
+      to={to}
+      className={`${baseStyle} ${active 
+        ? `bg-green-800 text-white ${specialStyle ? 'hover:bg-green-700' : 'hover:bg-green-700'}` 
+        : `hover:bg-green-50 ${defaultStyle}`}`}
+    >
+      {icon && <span className="mr-1.5">{icon}</span>}
+      {children}
+    </Link>
+  );
+};
+
+// Composant pour les liens du menu déroulant
+const DropdownLink = ({ to, children, icon, special }) => {
+  return (
+    <Link
+      to={to}
+      className={`flex items-center px-4 py-2 text-sm ${special ? 'text-amber-600 hover:bg-amber-50' : 'text-gray-700 hover:bg-gray-50'}`}
+    >
+      {icon && <span className={`mr-2 ${special ? 'text-amber-500' : 'text-gray-500'}`}>{icon}</span>}
+      {children}
+    </Link>
+  );
+};
+
+// Composant pour les liens du menu mobile
+const MobileNavLink = ({ to, children, icon, active, specialStyle }) => {
+  const baseStyle = "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors";
+  const defaultStyle = specialStyle || "text-green-800";
+  
+  return (
+    <Link
+      to={to}
+      className={`${baseStyle} ${active 
+        ? `bg-green-800 text-white ${specialStyle ? '' : ''}` 
+        : `hover:bg-green-50 ${defaultStyle}`}`}
+    >
+      {icon && <span className="mr-2">{icon}</span>}
+      {children}
+    </Link>
   );
 };
 
