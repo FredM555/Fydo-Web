@@ -15,10 +15,10 @@ const Hero = () => {
   // Déclencher les animations séquentiellement
   useEffect(() => {
     const titleTimer = setTimeout(() => setShowTitle(true), 100);
-    const subtitleTimer = setTimeout(() => setShowSubtitle(true), 500);
-    const buttonsTimer = setTimeout(() => setShowButtons(true), 900);
-    const scanCardTimer = setTimeout(() => setShowScanCard(true), 1300);
-    const cardsTimer = setTimeout(() => setShowFeatureCards(true), 1700);
+    const subtitleTimer = setTimeout(() => setShowSubtitle(true), 200);
+    const buttonsTimer = setTimeout(() => setShowButtons(true), 300);
+    const scanCardTimer = setTimeout(() => setShowScanCard(true), 400);
+    const cardsTimer = setTimeout(() => setShowFeatureCards(true), 500);
 
     return () => {
       clearTimeout(titleTimer);
