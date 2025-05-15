@@ -1,7 +1,7 @@
 // src/components/ReceiptItemSelector.js
 import React, { useState, useEffect } from 'react';
 import { Edit, Check, X, Trash, ShoppingCart, Plus } from 'lucide-react';
-import { calculateMatchScore } from '../utils/textSimilarityUtils';
+import { calculateMatchScore, findBestMatchingItem } from '../utils/textSimilarityUtils';
 
 /**
  * Composant permettant d'afficher et de sélectionner les articles du ticket de caisse
@@ -66,7 +66,6 @@ useEffect(() => {
         bestItem = item;
       }
     });
-    
     
     // Sélectionner automatiquement si le score est suffisant (0.2 = 20%)
     if (bestItem && bestScore > 0.2) {

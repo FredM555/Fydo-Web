@@ -1,6 +1,6 @@
 // src/components/ReviewForm.js
 import React, { useState, useEffect, useMemo } from 'react';
-import { Star, AlertCircle, CheckCircle, Loader, Calendar, DollarSign, ShoppingBag, X, AlertTriangle } from 'lucide-react';
+import { Star, AlertCircle, CheckCircle, Loader, Calendar, DollarSign, ShoppingBag, X, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ReceiptUploadEnhanced from './ReceiptUploadEnhanced';
 import ReceiptItemSelector from './ReceiptItemSelector';
@@ -31,6 +31,9 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  
+  // Nouvel état pour contrôler l'affichage de la liste d'articles
+  const [isItemListExpanded, setIsItemListExpanded] = useState(false);
   
   // Nouveaux états pour les validations et alertes
   const [validationErrors, setValidationErrors] = useState({});
@@ -260,6 +263,9 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
       setMatchScore(score);
       setShowLowMatchAlert(score < 0.8);
     }
+    
+    // Replier la liste après avoir sélectionné un article
+    setIsItemListExpanded(false);
   };
   
   // Validation du formulaire
@@ -286,6 +292,19 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
     return Object.keys(errors).length === 0;
   };
   
+  // Fonction pour basculer l'affichage de la liste d'articles
+  const toggleItemList = () => {
+    setIsItemListExpanded(!isItemListExpanded);
+    
+    // Si on ferme la liste et qu'aucun article n'est sélectionné, afficher une erreur
+    if (isItemListExpanded && !selectedItem && receiptItems.length > 0) {
+      setValidationErrors(prev => ({
+        ...prev,
+        selectedItem: "Vous devez sélectionner un article du ticket"
+      }));
+    }
+  };
+  
   // Gestion de l'envoi de l'avis
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -301,8 +320,6 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
       // Le formulaire contient des erreurs, ne pas soumettre
       return;
     }
-      
-
     
     setLoading(true);
     setError(null);
@@ -566,22 +583,68 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
                 </div>
               )}
               
-              <ReceiptItemSelector 
-                items={receiptItems}
-                onChange={handleReceiptItemsChange}
-                selectedItem={selectedItem}
-                onSelect={handleSelectItem}
-                productName={product.product_name} // Passer le nom du produit pour le calcul de correspondance
-              />
-              
-              {selectedItem && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                  <p className="text-blue-700 text-sm font-medium">Article sélectionné : <strong>{selectedItem.designation}</strong></p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Le prix d'achat de cet article ({formatPrice(selectedItem.prix_total)}) sera utilisé pour votre avis.
-                  </p>
+              {/* Article sélectionné */}
+              {selectedItem ? (
+                <div className="p-3 bg-blue-50 rounded-md mb-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <p className="text-blue-700 font-medium">Article sélectionné</p>
+                        {/* Badge de pourcentage de correspondance */}
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                          matchScore >= 0.8 ? 'bg-green-100 text-green-800' : 
+                          matchScore >= 0.5 ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {Math.round(matchScore * 100)}% de correspondance
+                        </span>
+                      </div>
+                      <p className="text-gray-800 font-bold">{selectedItem.designation}</p>
+                      <div className="text-sm text-gray-700 mt-1">
+                        <span className="inline-block mr-3">Quantité: {selectedItem.quantite}</span>
+                        <span className="inline-block mr-3">Prix: {formatPrice(selectedItem.prix_total)}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleItemList}
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-full focus:outline-none"
+                      aria-label={isItemListExpanded ? "Masquer la liste d'articles" : "Afficher la liste d'articles"}
+                    >
+                      {isItemListExpanded ? (
+                        <ChevronUp size={20} />
+                      ) : (
+                        <ChevronDown size={20} />
+                      )}
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsItemListExpanded(true)}
+                  className="w-full py-2 px-4 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition flex items-center justify-center mb-3"
+                >
+                  <span>Sélectionner un article</span>
+                  <ChevronDown size={18} className="ml-2" />
+                </button>
               )}
+              
+              {/* Liste d'articles repliable */}
+              <div 
+                className={`transition-all duration-300 overflow-hidden border ${isItemListExpanded ? 'border-gray-200 max-h-96 opacity-100 p-3 mb-3' : 'border-transparent max-h-0 opacity-0 p-0'}`}
+                style={{ marginTop: isItemListExpanded ? '0.75rem' : '0' }}
+              >
+                <ReceiptItemSelector 
+                  items={receiptItems}
+                  onChange={handleReceiptItemsChange}
+                  selectedItem={selectedItem}
+                  onSelect={handleSelectItem}
+                  productName={product.product_name}
+                />
+              </div>
+              
+              {/* Bouton pour déployer la liste si aucun article n'est sélectionné - Supprimé car intégré dans la condition ci-dessus */}
             </div>
           )}
           
