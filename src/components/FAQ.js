@@ -1,12 +1,52 @@
-// src/components/FAQ.js
-import React, { useState } from 'react';
-import { ChevronDown, HelpCircle, Camera, Star, ShoppingBag, User, CreditCard } from 'lucide-react';
+// src/components/FAQEnhanced.js
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Lightbulb, 
+  Target, 
+  Users, 
+  Shield,
+  HelpCircle,
+  Camera, 
+  Star, 
+  MessageSquare, 
+  ShoppingBag,
+  Coffee,
+  ArrowDown,
+  CreditCard,
+  User,
+  ChevronDown,
+  Lock,
+  Globe
+} from 'lucide-react';
 
 const FAQ = () => {
-  // État pour suivre quelle catégorie est ouverte
   const [openCategory, setOpenCategory] = useState('general');
-  // État pour suivre quelles questions sont ouvertes
   const [openQuestions, setOpenQuestions] = useState({});
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef(null);
+
+  // Observer pour déclencher l'animation lorsque la section est visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.disconnect();
+      }
+    };
+  }, []);
 
   // Fonction pour basculer l'état d'une catégorie
   const toggleCategory = (category) => {
@@ -24,7 +64,7 @@ const FAQ = () => {
   // Données des FAQs organisées par catégorie
   const faqData = {
     general: {
-      icon: <HelpCircle className="text-green-600" />,
+      icon: <HelpCircle className="text-green-600" size={24} />,
       title: "Questions générales",
       questions: [
         {
@@ -50,7 +90,7 @@ const FAQ = () => {
       ]
     },
     scan: {
-      icon: <Camera className="text-green-600" />,
+      icon: <Camera className="text-green-600" size={24} />,
       title: "Scan et recherche",
       questions: [
         {
@@ -76,7 +116,7 @@ const FAQ = () => {
       ]
     },
     reviews: {
-      icon: <Star className="text-green-600" />,
+      icon: <Star className="text-amber-500 fill-amber-500" size={24} />,
       title: "Avis et évaluations",
       questions: [
         {
@@ -102,7 +142,7 @@ const FAQ = () => {
       ]
     },
     account: {
-      icon: <User className="text-green-600" />,
+      icon: <User className="text-green-600" size={24} />,
       title: "Compte et profil",
       questions: [
         {
@@ -128,7 +168,7 @@ const FAQ = () => {
       ]
     },
     subscription: {
-      icon: <CreditCard className="text-green-600" />,
+      icon: <CreditCard className="text-green-600" size={24} />,
       title: "Abonnements et paiement",
       questions: [
         {
@@ -154,7 +194,7 @@ const FAQ = () => {
       ]
     },
     data: {
-      icon: <ShoppingBag className="text-green-600" />,
+      icon: <Globe className="text-green-600" size={24} />,
       title: "Données et confidentialité",
       questions: [
         {
@@ -181,29 +221,52 @@ const FAQ = () => {
     }
   };
 
+  // Obtenir l'icône de catégorie avec la bonne couleur
+  const getCategoryIcon = (category, isActive) => {
+    if (category === 'reviews') {
+      return React.cloneElement(faqData[category].icon, {
+        className: isActive ? "text-amber-600 fill-amber-500" : "text-green-600",
+        size: 24
+      });
+    }
+    return React.cloneElement(faqData[category].icon, {
+      className: isActive ? "text-amber-600" : "text-green-600",
+      size: 24
+    });
+  };
+
   return (
-    <section id="faq" className="py-16 bg-white">
-      <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center text-green-800 mb-4">Foire Aux Questions</h2>
-        <p className="text-center text-green-700 mb-12 max-w-2xl mx-auto">
-          Trouvez des réponses aux questions les plus fréquemment posées sur FYDO et son fonctionnement
-        </p>
+    <section id="faq" className="py-20 bg-white relative overflow-hidden" ref={sectionRef}>
+      {/* Éléments décoratifs */}
+      <div className="absolute top-0 left-1/4 w-48 h-48 rounded-full bg-green-50 transform -translate-y-1/2 opacity-70"></div>
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-green-50 transform translate-y-1/3 opacity-50"></div>
+      
+      <div className="container mx-auto px-4 relative z-10">
+        <div className={`text-center mb-12 transition-all duration-700 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <h2 className="text-3xl font-bold text-green-800 mb-4">Foire Aux Questions</h2>
+          <p className="text-green-700 max-w-2xl mx-auto">
+            Trouvez des réponses aux questions les plus fréquemment posées sur FYDO et son fonctionnement
+          </p>
+        </div>
         
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+        <div className={`max-w-4xl mx-auto transition-all duration-700 delay-200 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
             {/* Navigation des catégories */}
-            <div className="flex flex-wrap bg-green-100 overflow-x-auto">
-              {Object.keys(faqData).map((category) => (
+            <div className="flex flex-wrap bg-green-50 overflow-x-auto scrollbar-hide">
+              {Object.keys(faqData).map((category, index) => (
                 <button
                   key={category}
                   onClick={() => toggleCategory(category)}
                   className={`flex items-center px-4 py-3 text-sm md:text-base transition-colors whitespace-nowrap ${
                     openCategory === category 
                       ? 'bg-white text-green-700 font-medium border-t-2 border-green-600' 
-                      : 'text-green-800 hover:bg-green-50'
+                      : 'text-green-800 hover:bg-green-100'
+                  } transition-all duration-300 transform ${
+                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
                   }`}
+                  style={{ transitionDelay: `${isVisible ? 300 + index * 80 : 0}ms` }}
                 >
-                  <span className="mr-2">{faqData[category].icon}</span>
+                  <span className="mr-2">{getCategoryIcon(category, openCategory === category)}</span>
                   <span>{faqData[category].title}</span>
                 </button>
               ))}
@@ -219,31 +282,34 @@ const FAQ = () => {
                   }`}
                 >
                   <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center">
-                    {faqData[category].icon}
+                    {getCategoryIcon(category, true)}
                     <span className="ml-2">{faqData[category].title}</span>
                   </h3>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {faqData[category].questions.map((item) => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div key={item.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
                         <button
                           onClick={() => toggleQuestion(item.id)}
-                          className="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors"
+                          className="w-full px-5 py-4 text-left bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors"
+                          aria-expanded={openQuestions[item.id]}
+                          aria-controls={`answer-${item.id}`}
                         >
                           <span className="font-medium text-gray-800">{item.question}</span>
                           <ChevronDown 
-                            className={`text-green-600 transition-transform ${
+                            className={`text-green-600 transition-transform duration-300 ${
                               openQuestions[item.id] ? 'transform rotate-180' : ''
                             }`} 
                             size={18}
                           />
                         </button>
                         <div 
+                          id={`answer-${item.id}`}
                           className={`transition-all duration-300 ease-in-out overflow-hidden ${
                             openQuestions[item.id] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                           }`}
                         >
-                          <div className="p-4 bg-white">
+                          <div className="p-5 bg-white border-t border-gray-100">
                             <p className="text-gray-700">{item.answer}</p>
                           </div>
                         </div>
@@ -256,17 +322,34 @@ const FAQ = () => {
           </div>
           
           {/* Assistance supplémentaire */}
-          <div className="mt-8 text-center">
-            <p className="text-gray-700 mb-4">Vous n'avez pas trouvé votre réponse ?</p>
-            <a 
-              href="mailto:support@fydo.app" 
-              className="inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition duration-300"
-            >
-              Contacter notre support
-            </a>
+          <div className={`mt-10 text-center transition-all duration-700 delay-500 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="bg-green-50 p-6 rounded-xl border border-green-100">
+              <h3 className="text-xl font-bold text-green-800 mb-3">Vous n'avez pas trouvé votre réponse ?</h3>
+              <p className="text-green-700 mb-5">
+                Notre équipe de support est là pour vous aider avec toutes vos questions.
+              </p>
+              <a 
+                href="mailto:support@fydo.app" 
+                className="inline-flex items-center bg-green-800 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition duration-300 shadow-sm hover:shadow-md"
+              >
+                <MessageSquare size={18} className="mr-2" />
+                Contacter notre support
+              </a>
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Styles pour la barre de défilement horizontale masquée */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </section>
   );
 };
