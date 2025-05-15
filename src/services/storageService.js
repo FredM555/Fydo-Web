@@ -179,6 +179,7 @@ export const deleteReceipt = async (receiptId, userId) => {
       const storageRef = ref(storage, receipt.firebase_storage_path);
       await deleteObject(storageRef);
     }
+     
     
     // 3. Supprimer l'entrée dans Supabase
     const { error: deleteError } = await supabase

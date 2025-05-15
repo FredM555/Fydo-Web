@@ -157,7 +157,9 @@ export const getProductReviews = async (productCode, limit = 10, offset = 0) => 
  * @param {object} ratings - Notes par critère {criteria_id: rating, ...}
  * @param {object} purchaseInfo - Informations sur l'achat
  * @returns {Promise<object>} - Résultat de l'opération
- */
+ */  
+
+
 export const addProductReview = async (
   userId, 
   productCode, 

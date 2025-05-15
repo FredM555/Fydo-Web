@@ -301,6 +301,8 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
       // Le formulaire contient des erreurs, ne pas soumettre
       return;
     }
+      
+
     
     setLoading(true);
     setError(null);

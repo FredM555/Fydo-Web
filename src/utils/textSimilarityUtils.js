@@ -147,6 +147,7 @@ export const wordSimilarity = (str1, str2) => {
 export const calculateMatchScore = (text1, text2) => {
   if (!text1 || !text2) return 0;
   
+  
   // Nettoyer et normaliser les textes
   const clean1 = text1.toLowerCase().trim();
   const clean2 = text2.toLowerCase().trim();

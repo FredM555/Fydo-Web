@@ -67,6 +67,7 @@ useEffect(() => {
       }
     });
     
+    
     // Sélectionner automatiquement si le score est suffisant (0.2 = 20%)
     if (bestItem && bestScore > 0.2) {
       onSelect(bestItem);
