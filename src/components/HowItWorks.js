@@ -36,7 +36,7 @@ const HowItWorks = () => {
 
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev >= 3 ? 1 : prev + 1));
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [isVisible]);
