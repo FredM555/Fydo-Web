@@ -72,7 +72,7 @@ const Hero = () => {
                 showTitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
               }`}
             >
-              Des avis fiables sur vos produits du quotidien
+              Des avis fiables sur vos produits du quotidienn
             </h1>
             
             <p 
