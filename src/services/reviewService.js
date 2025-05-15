@@ -1,4 +1,4 @@
-// src/services/reviewService.js
+// src/services/reviewService.js (mise à jour)
 import { supabase } from '../supabaseClient';
 
 /**
@@ -158,9 +158,6 @@ export const getProductReviews = async (productCode, limit = 10, offset = 0) => 
  * @param {object} purchaseInfo - Informations sur l'achat
  * @returns {Promise<object>} - Résultat de l'opération
  */
-// Modification de la fonction addProductReview dans src/services/reviewService.js
-// Ajoutez la gestion des articles du ticket
-
 export const addProductReview = async (
   userId, 
   productCode, 
@@ -170,12 +167,22 @@ export const addProductReview = async (
   purchaseInfo = {}
 ) => {
   try {
+    // Validations des entrées
     if (!userId || !productCode) {
       throw new Error("ID utilisateur et code produit requis");
     }
     
+    if (!comment || comment.trim() === '') {
+      throw new Error("Un commentaire est requis pour publier un avis");
+    }
+    
     if (!ratings || Object.keys(ratings).length === 0) {
       throw new Error("Au moins une note est requise");
+    }
+    
+    // Vérifier si un article du ticket est sélectionné si le ticket a des articles
+    if (purchaseInfo.receiptItems && purchaseInfo.receiptItems.length > 0 && !purchaseInfo.selectedItemId) {
+      throw new Error("Vous devez sélectionner un article du ticket correspondant au produit");
     }
     
     // Vérifier si l'utilisateur a déjà laissé un avis pour ce produit
@@ -211,8 +218,14 @@ export const addProductReview = async (
       location,
       storeName,
       authorizeSharing = false,
-      receiptItems = [] // Récupération des articles du ticket
+      receiptItems = [],
+      matchScore = 0 // Nouveau: score de correspondance pour la logique de statut
     } = purchaseInfo;
+    
+    // Déterminer le statut de l'avis en fonction du taux de correspondance
+    // Si le taux de correspondance est >= 75%, l'avis est approuvé automatiquement
+    // Sinon, il est en attente de modération
+    const reviewStatus = matchScore >= 0.75 ? 'approved' : 'pending';
     
     // Récupérer les ratings spécifiques par critère
     const tasteRating = ratings['1'] || 0; // Supposant que l'ID 1 est pour le goût
@@ -247,7 +260,8 @@ export const addProductReview = async (
           comment: comment,
           receipt_id: receiptId,
           is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
-          status: 'pending', // Les avis sont en attente de modération par défaut
+          status: reviewStatus, // Statut déterminé par le taux de correspondance
+          match_score: matchScore, // Enregistrer le score de correspondance
           // Nouveaux champs pour les notes spécifiques
           average_rating: averageRating,
           taste_rating: tasteRating,
@@ -279,14 +293,14 @@ export const addProductReview = async (
       
     if (ratingsError) throw ratingsError;
 
-    // NOUVEAU: Mettre à jour les articles du ticket pour les lier à l'avis
+    // Mettre à jour les articles du ticket pour les lier à l'avis
     if (receiptId && receiptItems && receiptItems.length > 0) {
       console.log("Articles du ticket à associer:", receiptItems);
       
       // Pour chaque article, vérifier s'il existe déjà dans receipt_items
       // Si non, l'insérer; si oui, le mettre à jour
       for (const item of receiptItems) {
-        if (item.id && item.id.startsWith('ai-item-') || item.id.startsWith('temp-')) {
+        if (item.id && (item.id.startsWith('ai-item-') || item.id.startsWith('temp-'))) {
           // C'est un ID temporaire, il faut insérer un nouvel article
           const newItem = {
             receipt_id: receiptId,
@@ -317,10 +331,16 @@ export const addProductReview = async (
       }
     }
     
-    // Mettre à jour les statistiques du produit
-    await updateProductStats(productCode);
+    // Mettre à jour les statistiques du produit seulement si l'avis est approuvé
+    if (reviewStatus === 'approved') {
+      await updateProductStats(productCode);
+    }
     
-    return { success: true, review: newReview };
+    return { 
+      success: true, 
+      review: newReview,
+      status: reviewStatus // Renvoyer le statut pour informer l'utilisateur
+    };
   } catch (error) {
     console.error("Erreur lors de l'ajout de l'avis:", error.message);
     return { success: false, error: error.message };
@@ -603,7 +623,9 @@ export const getUserReviews = async (userId, limit = 10, offset = 0) => {
         purchase_date: review.purchase_date,
         store_name: review.store_name,
         has_location: !!review.purchase_location,
-        authorize_receipt_sharing: review.authorize_receipt_sharing
+        authorize_receipt_sharing: review.authorize_receipt_sharing,
+        // Score de correspondance
+        match_score: review.match_score
       };
     }));
     
@@ -615,7 +637,7 @@ export const getUserReviews = async (userId, limit = 10, offset = 0) => {
 };
 
 /**
- * Obtient l'image du ticket de caisse (version modifiée pour prendre en compte l'utilisateur propriétaire)
+ * Obtient l'image du ticket de caisse si autorisé
  * @param {string} reviewId - ID de l'avis
  * @returns {Promise<object>} - URL du ticket ou erreur
  */
@@ -638,10 +660,14 @@ export const getReceiptImage = async (reviewId) => {
       throw new Error("Aucun ticket associé à cet avis");
     }
     
+    if (!review.authorize_receipt_sharing) {
+      throw new Error("L'utilisateur n'a pas autorisé le partage du ticket");
+    }
+    
     // Récupérer les informations du ticket
     const { data: receipt, error: receiptError } = await supabase
       .from('receipts')
-      .select('firebase_url, user_id')
+      .select('firebase_url')
       .eq('id', review.receipt_id)
       .single();
       

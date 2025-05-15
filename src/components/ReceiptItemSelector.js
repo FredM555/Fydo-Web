@@ -1,12 +1,18 @@
 // src/components/ReceiptItemSelector.js
 import React, { useState, useEffect } from 'react';
 import { Edit, Check, X, Trash, ShoppingCart, Plus } from 'lucide-react';
+import { calculateMatchScore } from '../utils/textSimilarityUtils';
 
 /**
  * Composant permettant d'afficher et de sélectionner les articles du ticket de caisse
  * avec possibilité d'édition des informations détectées par l'IA
+ * @param {Array} items - Liste des articles du ticket
+ * @param {Function} onChange - Fonction appelée lorsque les articles sont modifiés
+ * @param {Object} selectedItem - Article actuellement sélectionné
+ * @param {Function} onSelect - Fonction appelée lorsqu'un article est sélectionné
+ * @param {string} productName - Nom du produit pour calculer le taux de correspondance
  */
-const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) => {
+const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, productName }) => {
   // État local pour gérer l'article en cours d'édition
   const [editingItemId, setEditingItemId] = useState(null);
   // État local pour stocker les valeurs modifiées pendant l'édition
@@ -18,6 +24,57 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
   useEffect(() => {
     setReceiptItems(items);
   }, [items]);
+
+  // Ajoutez ce useEffect dans le composant ReceiptItemSelector
+  useEffect(() => {
+    // S'assurer qu'il y a des articles et un nom de produit à comparer
+    if (receiptItems.length > 0 && productName) {
+      // Trouver l'article avec le meilleur taux de correspondance
+      let bestMatchItem = null;
+      let bestMatchScore = 0;
+      
+      receiptItems.forEach(item => {
+        const score = getMatchScore(item.designation);
+        if (score > bestMatchScore) {
+          bestMatchScore = score;
+          bestMatchItem = item;
+        }
+      });
+      
+      // Sélectionner automatiquement l'article si le score est suffisamment élevé (ex: >40%)
+      if (bestMatchItem && bestMatchScore > 0.1 && onSelect) {
+        onSelect(bestMatchItem);
+      }
+    }
+  }, [receiptItems, productName]); // Dépendances du useEffect
+
+  // Ajoutez ce code dans le composant ReceiptItemSelector.js après les autres hooks
+useEffect(() => {
+  // S'exécuter uniquement au chargement initial des articles ou si la sélection est perdue
+  if (items.length > 0 && productName && !selectedItem) {
+    // Trouver l'article avec le meilleur taux de correspondance
+    let bestItem = null;
+    let bestScore = 0;
+    
+    items.forEach(item => {
+      const score = calculateMatchScore(item.designation, productName);
+      // Ajouter le score comme propriété de l'élément pour référence future
+      item.matchScore = score;
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestItem = item;
+      }
+    });
+    
+    // Sélectionner automatiquement si le score est suffisant (0.2 = 20%)
+    if (bestItem && bestScore > 0.2) {
+      onSelect(bestItem);
+      console.log(`Sélection automatique: ${bestItem.designation} (score: ${bestScore})`);
+    }
+  }
+}, [items, productName, selectedItem, onSelect]);
+
 
   // Démarrer l'édition d'un article
   const startEditing = (item) => {
@@ -133,6 +190,19 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
     }
   };
 
+  // Calculer le taux de correspondance entre la désignation de l'article et le nom du produit
+  const getMatchScore = (designation) => {
+    if (!productName || !designation) return 0;
+    return calculateMatchScore(designation, productName);
+  };
+
+  // Obtenir la classe CSS pour le badge du taux de correspondance
+  const getMatchScoreClass = (score) => {
+    if (score >= 0.8) return "bg-green-100 text-green-800";
+    if (score >= 0.5) return "bg-yellow-100 text-yellow-800";
+    return "bg-gray-100 text-gray-800";
+  };
+
   return (
     <div className="mt-4">
       <div className="flex justify-between items-center mb-2">
@@ -169,6 +239,11 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
                 <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Prix total
                 </th>
+                {productName && (
+                  <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Correspondance
+                  </th>
+                )}
                 <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -222,6 +297,7 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
                           min="0"
                         />
                       </td>
+                      {productName && <td className="px-3 py-2"></td>}
                       <td className="px-3 py-2 text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <button
@@ -256,6 +332,20 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
                       <td className="px-3 py-2 text-sm text-right text-gray-800 font-medium">
                         {(item.prix_total || 0).toFixed(2)} €
                       </td>
+                      {productName && (
+                        <td className="px-3 py-2 text-sm text-center">
+                          {(() => {
+                            const score = getMatchScore(item.designation);
+                            const scoreClass = getMatchScoreClass(score);
+                            const percentage = Math.round(score * 100);
+                            return (
+                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${scoreClass}`}>
+                                {percentage}%
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <button
@@ -285,6 +375,25 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect }) =
       <div className="mt-2 text-right text-xs text-gray-500 italic">
         Cliquez sur un article pour le sélectionner, ou sur les icônes pour modifier ou supprimer
       </div>
+      {productName && (
+        <div className="mt-3 text-xs text-gray-600">
+          <p className="font-medium">Aide sur le taux de correspondance :</p>
+          <div className="flex items-center space-x-4 mt-1">
+            <span className="inline-flex items-center">
+              <span className="inline-block w-4 h-4 rounded-full bg-green-100 mr-1"></span>
+              <span>Forte (≥80%)</span>
+            </span>
+            <span className="inline-flex items-center">
+              <span className="inline-block w-4 h-4 rounded-full bg-yellow-100 mr-1"></span>
+              <span>Moyenne (50-79%)</span>
+            </span>
+            <span className="inline-flex items-center">
+              <span className="inline-block w-4 h-4 rounded-full bg-gray-100 mr-1"></span>
+              <span>Faible (≤49%)</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
