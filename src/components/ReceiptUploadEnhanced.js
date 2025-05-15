@@ -1,9 +1,9 @@
-// src/components/ReceiptUploadEnhanced.js
+// src/components/ReceiptUploadEnhanced.js avec intégration du service d'analyse
 import React, { useState, useRef } from 'react';
-import { Upload, X, Check, AlertCircle, FileText, Camera, Calendar, ShoppingBag, DollarSign } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, FileText, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadReceipt } from '../services/storageService';
-import { formatDate, formatPrice } from '../utils/formatters';
+import { analyzeAndProcessReceipt } from '../services/receiptAnalysisService';
 
 const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
   const { currentUser, userDetails } = useAuth();
@@ -15,7 +15,6 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);
   const [aiProcessing, setAiProcessing] = useState(false);
-  const [aiData, setAiData] = useState(null);
   const fileInputRef = useRef(null);
   
   // Gestion de la sélection du fichier
@@ -65,10 +64,10 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
       return;
     }
     
+    console.log("🔄 Début du processus d'upload et d'analyse du ticket");
     setUploading(true);
     setError(null);
     setProgress(0);
-    setAiProcessing(true);
     
     // Simulation de progression pendant l'upload
     const progressInterval = setInterval(() => {
@@ -76,8 +75,9 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
     }, 200);
     
     try {
-      // Télécharger vers Firebase Storage et enregistrer dans Supabase
-      const result = await uploadReceipt(
+      // 1. Télécharger l'image vers Firebase Storage
+      console.log("⬆️ Téléchargement de l'image vers Firebase...");
+      const uploadResult = await uploadReceipt(
         file, 
         userDetails.id, 
         currentUser.uid, 
@@ -85,39 +85,59 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
       );
       
       clearInterval(progressInterval);
+      console.log("✅ Résultat du téléchargement:", uploadResult);
       
-      if (!result.success) {
-        throw new Error(result.error || "Le téléchargement a échoué. Veuillez réessayer.");
+      if (!uploadResult.success) {
+        console.error("❌ Erreur pendant le téléchargement:", uploadResult.error);
+        throw new Error(uploadResult.error || "Le téléchargement a échoué. Veuillez réessayer.");
       }
       
-      setProgress(90);
+      setProgress(85);
+      setAiProcessing(true);
       
-      // Si Claude a extrait des données, les stocker et les afficher
-      if (result.aiData) {
-        console.log("Données extraites par Claude:", result.aiData);
-        setAiData(result.aiData);
+      // 2. Analyser le ticket avec l'API et traiter les données
+      console.log("🧠 Début de l'analyse du ticket avec URL:", uploadResult.url);
+      const analysisResult = await analyzeAndProcessReceipt(
+        uploadResult.url,
+        userDetails.id,
+        uploadResult.receipt.id
+      );
+      
+      console.log("📊 Résultat de l'analyse:", analysisResult);
+      
+      // 3. Gérer le résultat
+      if (!analysisResult.success) {
+        console.warn("⚠️ Analyse du ticket incomplète:", analysisResult.error);
+        // Continuer malgré l'erreur d'analyse, l'image a bien été téléchargée
       }
       
-      // Terminer le processus avec succès
-      setTimeout(() => {
-        setProgress(100);
-        setAiProcessing(false);
-        setUploadSuccess(true);
+      setProgress(100);
+      setUploadSuccess(true);
+      
+      // 4. Appeler le callback avec toutes les données
+      console.log("🏁 Processus terminé, transmission des données au parent");
+      if (onUploadComplete) {
+        const analysisData = analysisResult.success ? analysisResult.data : null;
+        console.log("📤 Données envoyées au composant parent:", {
+          receipt: uploadResult.receipt,
+          url: uploadResult.url,
+          analysisData
+        });
         
-        // Appeler le callback si fourni, en transmettant les données extraites
-        if (onUploadComplete) {
-          onUploadComplete(result.receipt, result.url, result.aiData);
-        }
-      }, 500);
-      
+        onUploadComplete(
+          uploadResult.receipt,
+          uploadResult.url,
+          analysisData
+        );
+      }
     } catch (err) {
       clearInterval(progressInterval);
-      console.error("Erreur lors du téléchargement:", err);
+      console.error("❌ Erreur critique dans le processus:", err);
       setError(err.message || "Le téléchargement a échoué. Veuillez réessayer.");
       setProgress(0);
-      setAiProcessing(false);
     } finally {
       setUploading(false);
+      setAiProcessing(false);
     }
   };
   
@@ -129,7 +149,6 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
     setUploadSuccess(false);
     setError(null);
     setProgress(0);
-    setAiData(null);
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -239,49 +258,16 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
             </div>
             
             {(uploading || aiProcessing) && (
-              <div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-green-600 h-2.5 rounded-full transition-all" 
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-green-600 h-2.5 rounded-full transition-all" 
+                  style={{ width: `${progress}%` }}
+                ></div>
                 <p className="text-xs text-gray-500 text-center mt-1">
                   {progress < 85 
-                    ? "Téléchargement en cours..." 
+                    ? `Téléchargement en cours (${progress}%)...` 
                     : "Analyse du ticket avec IA..."}
                 </p>
-              </div>
-            )}
-            
-            {/* Affichage des données extraites par l'IA */}
-            {uploadSuccess && aiData && (
-              <div className="mt-4 bg-green-50 p-3 rounded-lg">
-                <h3 className="text-sm font-medium text-green-800 mb-2">
-                  Informations extraites du ticket :
-                </h3>
-                <div className="space-y-2">
-                  {aiData.date && (
-                    <div className="flex items-center text-sm">
-                      <Calendar size={16} className="mr-2 text-green-600" />
-                      <span>Date d'achat : <strong>{formatDate(aiData.date)}</strong></span>
-                    </div>
-                  )}
-                  
-                  {aiData.store && (
-                    <div className="flex items-center text-sm">
-                      <ShoppingBag size={16} className="mr-2 text-green-600" />
-                      <span>Magasin : <strong>{aiData.store}</strong></span>
-                    </div>
-                  )}
-                  
-                  {aiData.price && (
-                    <div className="flex items-center text-sm">
-                      <DollarSign size={16} className="mr-2 text-green-600" />
-                      <span>Prix : <strong>{formatPrice(aiData.price)}</strong></span>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
             
