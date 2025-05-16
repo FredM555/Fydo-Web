@@ -290,6 +290,9 @@ const Header = () => {
                       <DropdownLink to="/mes-favoris" icon={<Heart size={16} />}>
                         Mes favoris
                       </DropdownLink>
+                      <DropdownLink to="/mes-tickets" icon={<MessageSquare size={16} />}>
+                        Mes tickets
+                      </DropdownLink>
                       
                       <DropdownLink to="/mes-avis" icon={<MessageSquare size={16} />}>
                         Mes avis

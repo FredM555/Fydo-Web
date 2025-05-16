@@ -159,6 +159,14 @@ const ProfileMobileNavbar = ({ currentUser, title, isMenuOpen, toggleMenu, onLog
               <Heart size={18} className="mr-3 shrink-0" />
               <span>Mes favoris</span>
             </Link>
+            <Link 
+              to="/mes-tickets" 
+              className={`flex items-center px-4 py-3 ${isActivePath('/mes-avis') ? 'bg-green-50 text-green-700' : 'hover:bg-gray-50 text-gray-700'}`}
+              onClick={toggleMenu}
+            >
+              <Star size={18} className="mr-3 shrink-0" />
+              <span>Mes tickets</span>
+            </Link>
             
             <Link 
               to="/mes-avis" 
