@@ -188,7 +188,7 @@ const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = [
     setMatchScore(score);
     
     // Afficher une alerte si le score est faible
-    setShowLowMatchAlert(score < 0.8);
+    setShowLowMatchAlert(score < 0.7);
     
     // Sélectionner automatiquement l'article avec la correspondance la plus élevée
     if (item) {
@@ -274,7 +274,7 @@ const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = [
     if (item && product && product.product_name) {
       const score = item.matchScore || findBestMatchingItem([item], product).score;
       setMatchScore(score);
-      setShowLowMatchAlert(score < 0.8);
+      setShowLowMatchAlert(score < 0.7);
     }
     
     // Replier la liste après avoir sélectionné un article
@@ -583,7 +583,7 @@ const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = [
                   <AlertTriangle size={18} className="mr-2 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium">Faible taux de correspondance détecté</p>
-                    <p className="text-sm">Le taux de correspondance de l'article sélectionné est inférieur à 80%. 
+                    <p className="text-sm">Le taux de correspondance de l'article sélectionné est inférieur à 70%. 
                     Votre avis sera soumis à modération avant publication.</p>
                   </div>
                 </div>
@@ -605,7 +605,7 @@ const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = [
                         <p className="text-blue-700 font-medium">Article sélectionné</p>
                         {/* Badge de pourcentage de correspondance */}
                         <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                          matchScore >= 0.8 ? 'bg-green-100 text-green-800' : 
+                          matchScore >= 0.7 ? 'bg-green-100 text-green-800' : 
                           matchScore >= 0.5 ? 'bg-yellow-100 text-yellow-800' : 
                           'bg-red-100 text-red-800'
                         }`}>

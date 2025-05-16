@@ -20,6 +20,8 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
   const [editValues, setEditValues] = useState({});
   // État local pour gérer les articles
   const [receiptItems, setReceiptItems] = useState([]);
+  // Nouvel état pour désactiver temporairement la sélection
+  const [selectionDisabled, setSelectionDisabled] = useState(false);
 
   // Mettre à jour les articles quand ils changent via les props
   useEffect(() => {
@@ -40,34 +42,37 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
     }
   }, [items, productName]);
 
-  // Ajoutez cet useEffect après l'useEffect existant qui met à jour les articles
-useEffect(() => {
-  // Ne faire la sélection automatique que si:
-  // 1. Il y a des articles
-  // 2. Un nom de produit est fourni (pour calculer les scores)
-  // 3. Aucun article n'est déjà sélectionné
-  if (receiptItems.length > 0 && productName && !selectedItem) {
-    console.log("🔍 Recherche de l'article avec la meilleure correspondance...");
-    
-    // Les articles sont déjà triés par score dans l'useEffect précédent
-    // Donc le premier article a le meilleur score
-    const bestMatch = receiptItems[0];
-    
-    // Vérifier si le score est suffisant (par exemple > 0.2 soit 20%)
-    if (bestMatch && bestMatch.matchScore > 0.2) {
-      console.log(`✅ Sélection automatique: ${bestMatch.designation} (${Math.round(bestMatch.matchScore * 100)}%)`);
-      // Sélectionner cet article
-      if (onSelect) {
-        onSelect(bestMatch);
+  // Sélection automatique du meilleur article
+  useEffect(() => {
+    // Ne faire la sélection automatique que si:
+    // 1. Il y a des articles
+    // 2. Un nom de produit est fourni (pour calculer les scores)
+    // 3. Aucun article n'est déjà sélectionné
+    // 4. Aucune édition n'est en cours (nouvel état)
+    if (receiptItems.length > 0 && productName && !selectedItem && !editingItemId) {
+      console.log("🔍 Recherche de l'article avec la meilleure correspondance...");
+      
+      // Les articles sont déjà triés par score dans l'useEffect précédent
+      // Donc le premier article a le meilleur score
+      const bestMatch = receiptItems[0];
+      
+      // Vérifier si le score est suffisant (par exemple > 0.2 soit 20%)
+      if (bestMatch && bestMatch.matchScore > 0.2) {
+        console.log(`✅ Sélection automatique: ${bestMatch.designation} (${Math.round(bestMatch.matchScore * 100)}%)`);
+        // Sélectionner cet article
+        if (onSelect) {
+          onSelect(bestMatch);
+        }
+      } else {
+        console.log("⚠️ Aucun article n'a un score suffisant pour la sélection automatique");
       }
-    } else {
-      console.log("⚠️ Aucun article n'a un score suffisant pour la sélection automatique");
-    }
-  } 
-}, [receiptItems, productName, selectedItem, onSelect]);
+    } 
+  }, [receiptItems, productName, selectedItem, onSelect, editingItemId]);
 
   // Démarrer l'édition d'un article
   const startEditing = (item) => {
+    // Désactiver la sélection pendant l'édition
+    setSelectionDisabled(true);
     setEditingItemId(item.id);
     setEditValues({
       designation: item.designation,
@@ -82,6 +87,8 @@ useEffect(() => {
   const cancelEditing = () => {
     setEditingItemId(null);
     setEditValues({});
+    // Réactiver la sélection après l'édition
+    setTimeout(() => setSelectionDisabled(false), 100);
   };
 
   // Sauvegarder les modifications
@@ -138,6 +145,9 @@ useEffect(() => {
             if (onChange) {
               onChange(finalUpdatedItems);
             }
+            
+            // Réactiver la sélection après l'édition
+            setTimeout(() => setSelectionDisabled(false), 100);
             return;
           }
         } else {
@@ -152,6 +162,9 @@ useEffect(() => {
     if (onChange) {
       onChange(updatedItems);
     }
+    
+    // Réactiver la sélection après l'édition
+    setTimeout(() => setSelectionDisabled(false), 100);
   };
 
   // Gérer les changements dans les champs d'édition
@@ -182,6 +195,9 @@ useEffect(() => {
 
   // Supprimer un article
   const deleteItem = async (itemId) => {
+    // Désactiver la sélection pendant la suppression
+    setSelectionDisabled(true);
+    
     try {
       console.log("🗑️ Suppression de l'article:", itemId);
       
@@ -203,15 +219,22 @@ useEffect(() => {
     if (onChange) {
       onChange(updatedItems);
     }
+    
+    // Réactiver la sélection après la suppression
+    setTimeout(() => setSelectionDisabled(false), 100);
   };
 
   // Ajouter un nouvel article
   const addNewItem = () => {
+    // Désactiver la sélection avant d'ajouter un nouvel article
+    setSelectionDisabled(true);
+    
     // Trouver l'ID du ticket à partir des articles existants
     const receiptId = receiptItems.length > 0 ? receiptItems[0].receipt_id : null;
     
     if (!receiptId) {
       console.error("❌ Impossible d'ajouter un article: ID de ticket introuvable");
+      setSelectionDisabled(false);
       return;
     }
     
@@ -240,7 +263,8 @@ useEffect(() => {
 
   // Sélectionner un article
   const handleSelectItem = (item) => {
-    if (onSelect) {
+    // Ne sélectionner que si la sélection n'est pas désactivée et qu'aucune édition n'est en cours
+    if (!selectionDisabled && editingItemId === null && onSelect) {
       onSelect(item);
     }
   };
@@ -255,14 +279,14 @@ useEffect(() => {
   return (
     <div className="mt-4">
       <div className="flex justify-between items-center mb-2">
-  <h4 className="font-medium text-gray-800">
-    Articles du ticket ({receiptItems.length}) {/* Affiche le nombre total d'articles */}
-    {receiptItems.length > 7 && 
-      <span className="text-xs text-gray-500 ml-2">
-        (Faites défiler pour voir tous les articles)
-      </span>
-    }
-  </h4>
+        <h4 className="font-medium text-gray-800">
+          Articles du ticket ({receiptItems.length})
+          {receiptItems.length > 7 && 
+            <span className="text-xs text-gray-500 ml-2">
+              (Faites défiler pour voir tous les articles)
+            </span>
+          }
+        </h4>
         <button
           type="button"
           onClick={addNewItem}
@@ -310,7 +334,7 @@ useEffect(() => {
               {receiptItems.map((item, index) => (
                 <tr 
                   key={item.id || index} 
-                  className={`hover:bg-gray-50 ${selectedItem && selectedItem.id === item.id ? 'bg-green-50' : ''}`}
+                  className={`${selectedItem && selectedItem.id === item.id ? 'bg-green-50' : 'hover:bg-gray-50'}`}
                   onClick={() => handleSelectItem(item)}
                 >
                   {editingItemId === item.id ? (
@@ -322,6 +346,7 @@ useEffect(() => {
                           value={editValues.designation || ''}
                           onChange={(e) => handleEditChange('designation', e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -332,6 +357,7 @@ useEffect(() => {
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
                           step="0.01"
                           min="0"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -342,6 +368,7 @@ useEffect(() => {
                           className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
                           step="0.01"
                           min="0"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </td>
                       <td className="px-3 py-2">
@@ -352,6 +379,7 @@ useEffect(() => {
                           className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
                           step="0.01"
                           min="0"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </td>
                       {productName && <td className="px-3 py-2"></td>}
@@ -359,15 +387,21 @@ useEffect(() => {
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); saveEditing(item.id); }}
-                            className="text-green-600 hover:text-green-900"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              saveEditing(item.id); 
+                            }}
+                            className="text-green-600 hover:text-green-900 p-1"
                           >
                             <Check size={16} />
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); cancelEditing(); }}
-                            className="text-red-600 hover:text-red-900"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              cancelEditing(); 
+                            }}
+                            className="text-red-600 hover:text-red-900 p-1"
                           >
                             <X size={16} />
                           </button>
@@ -404,18 +438,24 @@ useEffect(() => {
                       </td>
                     )}
                     <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); startEditing(item); }}
-                          className="text-blue-600 hover:text-blue-900"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(item);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 p-1"
                         >
                           <Edit size={16} />
                         </button>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItem(item.id);
+                          }}
+                          className="text-red-600 hover:text-red-900 p-1"
                         >
                           <Trash size={16} />
                         </button>
