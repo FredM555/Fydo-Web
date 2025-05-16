@@ -1,6 +1,46 @@
 // src/services/receiptService.js
 import { supabase } from '../supabaseClient';
+/**
+ * Récupère les articles d'un ticket de caisse depuis la base de données
+ * @param {string} receiptId - ID du ticket de caisse
+ * @returns {Promise<Object>} - Liste des articles avec informations de succès/erreur
+ */
+export const getReceiptItems = async (receiptId) => {
+  try {
+    console.log("🔍 Chargement des articles pour le ticket ID:", receiptId);
+    
+    if (!receiptId) {
+      console.error("❌ Erreur: ID de ticket manquant");
+      throw new Error("L'ID du ticket est requis pour charger les articles");
+    }
 
+    // Récupérer les articles depuis Supabase
+    const { data, error } = await supabase
+      .from('receipt_items')
+      .select('*')
+      .eq('receipt_id', receiptId)
+      .order('ordre', { ascending: true });
+      
+    if (error) {
+      console.error("❌ Erreur Supabase:", error);
+      throw error;
+    }
+    
+    console.log(`✅ ${data.length} articles chargés avec succès`);
+    
+    return {
+      success: true,
+      items: data
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors du chargement des articles:", error);
+    return {
+      success: false,
+      error: error.message,
+      items: []
+    };
+  }
+};
 /**
  * Vérifie si un ticket existe déjà pour cet utilisateur
  * @param {string} userId - ID de l'utilisateur 
@@ -371,6 +411,122 @@ export const linkReceiptItemToReview = async (reviewId, itemId) => {
     };
   } catch (error) {
     console.error("Erreur lors de l'association item-avis:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Met à jour un article de ticket dans la base de données
+ * @param {string} itemId - ID de l'article à mettre à jour
+ * @param {Object} updatedData - Nouvelles données pour l'article
+ * @returns {Promise<Object>} - Résultat de la mise à jour
+ */
+export const updateReceiptItem = async (itemId, updatedData) => {
+  try {
+    console.log("🔄 Mise à jour de l'article ID:", itemId, "avec données:", updatedData);
+    
+    if (!itemId) {
+      console.error("❌ Erreur: ID d'article manquant");
+      throw new Error("L'ID de l'article est requis pour la mise à jour");
+    }
+
+    // Si l'ID commence par "ai-item-" ou "temp-", c'est un ID temporaire 
+    // et l'article doit être inséré plutôt que mis à jour
+    if (itemId.startsWith('ai-item-') || itemId.startsWith('temp-')) {
+      console.log("⚠️ ID temporaire détecté, insertion d'un nouvel article");
+      
+      const { data: insertedItem, error: insertError } = await supabase
+        .from('receipt_items')
+        .insert([{
+          receipt_id: updatedData.receipt_id,
+          designation: updatedData.designation,
+          product_code: updatedData.product_code || null,
+          quantite: updatedData.quantite,
+          prix_unitaire: updatedData.prix_unitaire,
+          prix_total: updatedData.prix_total,
+          ordre: updatedData.ordre || 0
+        }])
+        .select()
+        .single();
+        
+      if (insertError) throw insertError;
+      
+      return {
+        success: true,
+        item: insertedItem,
+        action: 'inserted'
+      };
+    }
+    
+    // Mise à jour de l'article existant
+    const { data: updatedItem, error } = await supabase
+      .from('receipt_items')
+      .update({
+        designation: updatedData.designation,
+        product_code: updatedData.product_code,
+        quantite: updatedData.quantite,
+        prix_unitaire: updatedData.prix_unitaire,
+        prix_total: updatedData.prix_total
+      })
+      .eq('id', itemId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    console.log("✅ Article mis à jour avec succès:", updatedItem);
+    
+    return {
+      success: true,
+      item: updatedItem,
+      action: 'updated'
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour de l'article:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Supprime un article de ticket dans la base de données
+ * @param {string} itemId - ID de l'article à supprimer
+ * @returns {Promise<Object>} - Résultat de la suppression
+ */
+export const deleteReceiptItem = async (itemId) => {
+  try {
+    console.log("🗑️ Suppression de l'article ID:", itemId);
+    
+    // Si l'ID commence par "ai-item-" ou "temp-", c'est un ID temporaire 
+    // et l'article n'existe pas en base de données
+    if (itemId.startsWith('ai-item-') || itemId.startsWith('temp-')) {
+      console.log("⚠️ ID temporaire détecté, aucune suppression nécessaire en base de données");
+      return {
+        success: true,
+        action: 'ignored'
+      };
+    }
+    
+    const { error } = await supabase
+      .from('receipt_items')
+      .delete()
+      .eq('id', itemId);
+      
+    if (error) throw error;
+    
+    console.log("✅ Article supprimé avec succès");
+    
+    return {
+      success: true,
+      action: 'deleted'
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors de la suppression de l'article:", error);
     return {
       success: false,
       error: error.message

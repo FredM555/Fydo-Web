@@ -1,11 +1,11 @@
-// src/components/ReceiptUploadEnhanced.js avec intégration du service d'analyse
+// src/components/ReceiptUploadEnhanced.js
 import React, { useState, useRef } from 'react';
 import { Upload, X, Check, AlertCircle, FileText, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadReceipt } from '../services/storageService';
 import { analyzeAndProcessReceipt } from '../services/receiptAnalysisService';
 
-const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
+const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productName = null }) => {
   const { currentUser, userDetails } = useAuth();
   
   const [file, setFile] = useState(null);
@@ -97,6 +97,9 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
       
       // 2. Analyser le ticket avec l'API et traiter les données
       console.log("🧠 Début de l'analyse du ticket avec URL:", uploadResult.url);
+      console.log("👤 User ID:", userDetails.id);
+      console.log("🧾 Receipt ID:", uploadResult.receipt.id);
+      
       const analysisResult = await analyzeAndProcessReceipt(
         uploadResult.url,
         userDetails.id,
@@ -118,16 +121,21 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null }) => {
       console.log("🏁 Processus terminé, transmission des données au parent");
       if (onUploadComplete) {
         const analysisData = analysisResult.success ? analysisResult.data : null;
+        const receiptItems = analysisResult.success ? analysisResult.createdItems : [];
+        
         console.log("📤 Données envoyées au composant parent:", {
           receipt: uploadResult.receipt,
+          receiptId: uploadResult.receipt.id,
           url: uploadResult.url,
-          analysisData
+          analysisData,
+          receiptItems
         });
         
         onUploadComplete(
           uploadResult.receipt,
           uploadResult.url,
-          analysisData
+          analysisData,
+          receiptItems
         );
       }
     } catch (err) {

@@ -2,8 +2,52 @@
 import { supabase } from '../supabaseClient';
 
 /**
- * Service d'analyse et de stockage des tickets de caisse
+ * Récupère les articles d'un ticket de caisse depuis la base de données
+ * @param {string} receiptId - ID du ticket de caisse
+ * @returns {Promise<Object>} - Liste des articles avec informations de succès/erreur
  */
+export const getReceiptItems = async (receiptId) => {
+  try {
+    console.log("🔍 Chargement des articles pour le ticket ID:", receiptId);
+    
+    if (!receiptId) {
+      console.error("❌ Erreur: ID de ticket manquant");
+      throw new Error("L'ID du ticket est requis pour charger les articles");
+    }
+
+    // Récupérer les articles depuis Supabase
+    const { data, error } = await supabase
+      .from('receipt_items')
+      .select('*')
+      .eq('receipt_id', receiptId)
+      .order('ordre', { ascending: true });
+      
+    if (error) {
+      console.error("❌ Erreur Supabase:", error);
+      throw error;
+    }
+    
+    console.log(`✅ ${data.length} articles chargés avec succès`);
+    
+    // Ajouter un ID temporaire si besoin pour la gestion dans le composant
+    const itemsWithIds = data.map(item => ({
+      ...item,
+      id: item.id || `db-item-${Math.random().toString(36).substr(2, 9)}`
+    }));
+    
+    return {
+      success: true,
+      items: itemsWithIds
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors du chargement des articles:", error);
+    return {
+      success: false,
+      error: error.message,
+      items: []
+    };
+  }
+};
 
 /**
  * Envoie une image de ticket à l'API d'analyse et traite le résultat
@@ -70,10 +114,11 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
     }
     
     // 2.3 Créer les articles du ticket
+    let createdItems = [];
     if (articles && articles.length > 0) {
       console.log("🛒 Étape 4: Création des articles du ticket...", articles.length, "articles");
       try {
-        await createReceiptItems(receiptId, articles);
+        createdItems = await createReceiptItems(receiptId, articles);
         console.log("✅ Articles créés avec succès");
       } catch (itemsError) {
         console.error("⚠️ Erreur lors de la création des articles:", itemsError);
@@ -86,22 +131,25 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
     // 3. Retourner les données structurées pour utilisation par le client
     console.log("🏁 Fin du processus d'analyse et traitement");
     return {
-    success: true,
-    receipt: updatedReceipt || null,
-    data: {
+      success: true,
+      receipt: updatedReceipt || null,
+      receiptId: receiptId, // Toujours retourner l'ID du ticket même si la mise à jour a échoué
+      createdItems: createdItems, // Retourner les articles créés pour utilisation immédiate
+      data: {
         date: receipt.date,
         store: enseigne.nom,
         price: receipt.total,
         items: articles ? articles.length : 0,
         articles: articles // Ajout des articles complets ici
-    }
+      }
     };
   } catch (error) {
     console.error("❌❌ Erreur critique lors de l'analyse et du traitement du ticket:", error);
     console.error("Stack trace:", error.stack);
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      receiptId: receiptId // Retourner l'ID même en cas d'erreur pour permettre d'autres opérations
     };
   }
 };
@@ -131,7 +179,6 @@ const callReceiptAnalysisAPI = async (imageUrl) => {
     
     // Log des informations de la réponse
     console.log("✅ Réponse reçue de l'API - Status:", response.status);
-    console.log("📋 Headers:", Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       console.error("❌ Erreur API:", response.status, response.statusText);
@@ -144,13 +191,11 @@ const callReceiptAnalysisAPI = async (imageUrl) => {
     // Parser la réponse JSON
     console.log("🔄 Conversion de la réponse en JSON...");
     const result = await response.json();
-    console.log("📊 Résultat complet de l'analyse API:", JSON.stringify(result, null, 2));
+    console.log("📊 Résultat de l'analyse API reçu");
     
     return result;
   } catch (err) {
     console.error("❌❌ Erreur critique lors de l'appel à l'API d'analyse:", err);
-    // Afficher la stack trace pour un meilleur débogage
-    console.error("Stack trace:", err.stack);
     throw err;
   }
 };
@@ -162,12 +207,16 @@ const callReceiptAnalysisAPI = async (imageUrl) => {
  */
 const findOrCreateEnseigne = async (enseigneData) => {
   try {
+    if (!enseigneData || !enseigneData.nom) {
+      return null;
+    }
+
     // Vérifier si l'enseigne existe déjà (basé sur le nom et le code postal)
     const { data: existingEnseigne, error: searchError } = await supabase
       .from('enseignes')
       .select('id')
       .eq('nom', enseigneData.nom)
-      .eq('code_postal', enseigneData.code_postal)
+      .eq('code_postal', enseigneData.code_postal || '00000')
       .single();
     
     if (!searchError && existingEnseigne) {
@@ -179,10 +228,10 @@ const findOrCreateEnseigne = async (enseigneData) => {
       .from('enseignes')
       .insert([{
         nom: enseigneData.nom,
-        adresse1: enseigneData.adresse1,
+        adresse1: enseigneData.adresse1 || 'Adresse inconnue',
         adresse2: enseigneData.adresse2 || null,
-        code_postal: enseigneData.code_postal,
-        ville: enseigneData.ville,
+        code_postal: enseigneData.code_postal || '00000',
+        ville: enseigneData.ville || 'Ville inconnue',
         siret: enseigneData.siret || null
       }])
       .select()
@@ -206,15 +255,31 @@ const findOrCreateEnseigne = async (enseigneData) => {
  */
 const updateReceiptWithAnalysis = async (receiptId, receiptData, enseigneId) => {
   try {
+    // Préparer les données pour la mise à jour
+    const updateData = {
+      status: 'analyzed' // Mettre à jour le statut
+    };
+    
+    // Ajouter les champs qui existent
+    if (enseigneId) {
+      updateData.enseigne_id = enseigneId;
+    }
+    
+    if (receiptData.date) {
+      updateData.receipt_date = receiptData.date;
+    }
+    
+    if (receiptData.totalHt !== undefined) {
+      updateData.total_ht = receiptData.totalHt;
+    }
+    
+    if (receiptData.total !== undefined) {
+      updateData.total_ttc = receiptData.total;
+    }
+
     const { data: updatedReceipt, error } = await supabase
       .from('receipts')
-      .update({
-        enseigne_id: enseigneId,
-        receipt_date: receiptData.date,
-        total_ht: receiptData.totalHt,
-        total_ttc: receiptData.total,
-        status: 'analyzed' // Mettre à jour le statut
-      })
+      .update(updateData)
       .eq('id', receiptId)
       .select()
       .single();
@@ -236,14 +301,20 @@ const updateReceiptWithAnalysis = async (receiptId, receiptData, enseigneId) => 
  */
 const createReceiptItems = async (receiptId, items) => {
   try {
+    console.log(`🛒 Création de ${items.length} articles pour le ticket ${receiptId}`);
+    
+    if (!items || items.length === 0) {
+      return [];
+    }
+    
     // Préparer les données pour l'insertion
     const itemsToInsert = items.map((item, index) => ({
       receipt_id: receiptId,
-      designation: item.designation,
-      product_code: null, // À remplir ultérieurement par un autre processus
-      quantite: item.quantite,
-      prix_unitaire: item.prix_unitaire,
-      prix_total: item.prix_total,
+      designation: item.designation || 'Article sans nom',
+      product_code: item.product_code || null, // Peut être null initialement
+      quantite: parseFloat(item.quantite) || 1,
+      prix_unitaire: parseFloat(item.prix_unitaire) || 0,
+      prix_total: parseFloat(item.prix_total) || 0,
       ordre: index + 1
     }));
     
@@ -252,92 +323,128 @@ const createReceiptItems = async (receiptId, items) => {
       .insert(itemsToInsert)
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error("❌ Erreur lors de l'insertion des articles:", error);
+      throw error;
+    }
     
+    console.log(`✅ ${createdItems.length} articles créés avec succès`);
     return createdItems;
   } catch (error) {
-    console.error("Erreur lors de la création des articles du ticket:", error);
+    console.error("❌ Erreur lors de la création des articles du ticket:", error);
     throw error;
   }
 };
 
 /**
- * Recherche un produit par sa désignation
- * Ce service peut être utilisé pour compléter les codes-barres manquants 
- * dans les articles du ticket
- * @param {string} designation - Désignation du produit
- * @returns {Promise<Object|null>} - Produit trouvé ou null
+ * Met à jour un article de ticket dans la base de données
+ * @param {string} itemId - ID de l'article à mettre à jour
+ * @param {Object} updatedData - Nouvelles données pour l'article
+ * @returns {Promise<Object>} - Résultat de la mise à jour
  */
-export const findProductByDesignation = async (designation) => {
+export const updateReceiptItem = async (itemId, updatedData) => {
   try {
-    if (!designation) return null;
+    console.log("🔄 Mise à jour de l'article ID:", itemId, "avec données:", updatedData);
     
-    // Nettoyer la désignation pour la recherche
-    const cleanDesignation = designation.trim().toLowerCase();
+    if (!itemId) {
+      console.error("❌ Erreur: ID d'article manquant");
+      throw new Error("L'ID de l'article est requis pour la mise à jour");
+    }
+
+    // Si l'ID commence par "ai-item-" ou "temp-", c'est un ID temporaire 
+    // et l'article doit être inséré plutôt que mis à jour
+    if (itemId.startsWith('ai-item-') || itemId.startsWith('temp-')) {
+      console.log("⚠️ ID temporaire détecté, insertion d'un nouvel article");
+      
+      const { data: insertedItem, error: insertError } = await supabase
+        .from('receipt_items')
+        .insert([{
+          receipt_id: updatedData.receipt_id,
+          designation: updatedData.designation,
+          product_code: updatedData.product_code || null,
+          quantite: updatedData.quantite,
+          prix_unitaire: updatedData.prix_unitaire,
+          prix_total: updatedData.prix_total,
+          ordre: updatedData.ordre || 0
+        }])
+        .select()
+        .single();
+        
+      if (insertError) throw insertError;
+      
+      return {
+        success: true,
+        item: insertedItem,
+        action: 'inserted'
+      };
+    }
     
-    // Rechercher dans la table des produits
-    const { data, error } = await supabase
-      .from('products')
-      .select('code, product_name, brands')
-      .ilike('product_name', `%${cleanDesignation}%`)
-      .limit(1)
+    // Mise à jour de l'article existant
+    const { data: updatedItem, error } = await supabase
+      .from('receipt_items')
+      .update({
+        designation: updatedData.designation,
+        product_code: updatedData.product_code,
+        quantite: updatedData.quantite,
+        prix_unitaire: updatedData.prix_unitaire,
+        prix_total: updatedData.prix_total
+      })
+      .eq('id', itemId)
+      .select()
       .single();
+      
+    if (error) throw error;
     
-    if (error || !data) return null;
+    console.log("✅ Article mis à jour avec succès:", updatedItem);
     
-    return data;
+    return {
+      success: true,
+      item: updatedItem,
+      action: 'updated'
+    };
   } catch (error) {
-    console.error("Erreur lors de la recherche de produit:", error);
-    return null;
+    console.error("❌ Erreur lors de la mise à jour de l'article:", error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };
 
 /**
- * Met à jour les codes-barres des articles du ticket
- * Cette fonction peut être appelée après l'analyse initiale pour enrichir les données
- * @param {string} receiptId - ID du ticket
- * @returns {Promise<Object>} - Résultat de l'opération
+ * Supprime un article de ticket dans la base de données
+ * @param {string} itemId - ID de l'article à supprimer
+ * @returns {Promise<Object>} - Résultat de la suppression
  */
-export const enrichReceiptItemsWithProductCodes = async (receiptId) => {
+export const deleteReceiptItem = async (itemId) => {
   try {
-    // 1. Récupérer tous les articles du ticket
-    const { data: items, error: fetchError } = await supabase
+    console.log("🗑️ Suppression de l'article ID:", itemId);
+    
+    // Si l'ID commence par "ai-item-" ou "temp-", c'est un ID temporaire 
+    // et l'article n'existe pas en base de données
+    if (itemId.startsWith('ai-item-') || itemId.startsWith('temp-')) {
+      console.log("⚠️ ID temporaire détecté, aucune suppression nécessaire en base de données");
+      return {
+        success: true,
+        action: 'ignored'
+      };
+    }
+    
+    const { error } = await supabase
       .from('receipt_items')
-      .select('*')
-      .eq('receipt_id', receiptId);
+      .delete()
+      .eq('id', itemId);
+      
+    if (error) throw error;
     
-    if (fetchError) throw fetchError;
-    
-    if (!items || items.length === 0) {
-      return { success: true, message: "Aucun article à enrichir" };
-    }
-    
-    // 2. Pour chaque article, tenter de trouver un produit correspondant
-    let updatedCount = 0;
-    
-    for (const item of items) {
-      if (!item.product_code && item.designation) {
-        const product = await findProductByDesignation(item.designation);
-        
-        if (product && product.code) {
-          // Mettre à jour l'article avec le code-barres trouvé
-          const { error: updateError } = await supabase
-            .from('receipt_items')
-            .update({ product_code: product.code })
-            .eq('id', item.id);
-          
-          if (!updateError) updatedCount++;
-        }
-      }
-    }
+    console.log("✅ Article supprimé avec succès");
     
     return {
       success: true,
-      updatedCount,
-      totalItems: items.length
+      action: 'deleted'
     };
   } catch (error) {
-    console.error("Erreur lors de l'enrichissement des articles:", error);
+    console.error("❌ Erreur lors de la suppression de l'article:", error);
     return {
       success: false,
       error: error.message
@@ -346,7 +453,8 @@ export const enrichReceiptItemsWithProductCodes = async (receiptId) => {
 };
 
 export default {
+  getReceiptItems,
   analyzeAndProcessReceipt,
-  findProductByDesignation,
-  enrichReceiptItemsWithProductCodes
+  updateReceiptItem,
+  deleteReceiptItem
 };

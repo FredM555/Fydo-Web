@@ -1,11 +1,12 @@
 // src/components/ReceiptItemSelector.js
 import React, { useState, useEffect } from 'react';
 import { Edit, Check, X, Trash, ShoppingCart, Plus } from 'lucide-react';
-import { calculateMatchScore, findBestMatchingItem } from '../utils/textSimilarityUtils';
+import { calculateMatchScore } from '../utils/textSimilarityUtils';
+import { updateReceiptItem, deleteReceiptItem } from '../services/receiptAnalysisService';
 
 /**
  * Composant permettant d'afficher et de sélectionner les articles du ticket de caisse
- * avec possibilité d'édition des informations détectées par l'IA
+ * avec possibilité d'édition des informations détectées
  * @param {Array} items - Liste des articles du ticket
  * @param {Function} onChange - Fonction appelée lorsque les articles sont modifiés
  * @param {Object} selectedItem - Article actuellement sélectionné
@@ -18,63 +19,52 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
   // État local pour stocker les valeurs modifiées pendant l'édition
   const [editValues, setEditValues] = useState({});
   // État local pour gérer les articles
-  const [receiptItems, setReceiptItems] = useState(items);
+  const [receiptItems, setReceiptItems] = useState([]);
 
   // Mettre à jour les articles quand ils changent via les props
   useEffect(() => {
-    setReceiptItems(items);
-  }, [items]);
-
-  // Ajoutez ce useEffect dans le composant ReceiptItemSelector
-  useEffect(() => {
-    // S'assurer qu'il y a des articles et un nom de produit à comparer
-    if (receiptItems.length > 0 && productName) {
-      // Trouver l'article avec le meilleur taux de correspondance
-      let bestMatchItem = null;
-      let bestMatchScore = 0;
+    console.log("📥 Mise à jour des articles dans ReceiptItemSelector:", items.length);
+    
+    // Ajouter les scores de correspondance à chaque article si un nom de produit est fourni
+    if (productName) {
+      const itemsWithScores = items.map(item => ({
+        ...item,
+        matchScore: item.matchScore || calculateMatchScore(item.designation || '', productName)
+      }));
       
-      receiptItems.forEach(item => {
-        const score = getMatchScore(item.designation);
-        if (score > bestMatchScore) {
-          bestMatchScore = score;
-          bestMatchItem = item;
-        }
-      });
-      
-      // Sélectionner automatiquement l'article si le score est suffisamment élevé (ex: >40%)
-      if (bestMatchItem && bestMatchScore > 0.1 && onSelect) {
-        onSelect(bestMatchItem);
-      }
+      // Trier par score de correspondance décroissant
+      itemsWithScores.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+      setReceiptItems(itemsWithScores);
+    } else {
+      setReceiptItems(items);
     }
-  }, [receiptItems, productName]); // Dépendances du useEffect
+  }, [items, productName]);
 
-  // Ajoutez ce code dans le composant ReceiptItemSelector.js après les autres hooks
+  // Ajoutez cet useEffect après l'useEffect existant qui met à jour les articles
 useEffect(() => {
-  // S'exécuter uniquement au chargement initial des articles ou si la sélection est perdue
-  if (items.length > 0 && productName && !selectedItem) {
-    // Trouver l'article avec le meilleur taux de correspondance
-    let bestItem = null;
-    let bestScore = 0;
+  // Ne faire la sélection automatique que si:
+  // 1. Il y a des articles
+  // 2. Un nom de produit est fourni (pour calculer les scores)
+  // 3. Aucun article n'est déjà sélectionné
+  if (receiptItems.length > 0 && productName && !selectedItem) {
+    console.log("🔍 Recherche de l'article avec la meilleure correspondance...");
     
-    items.forEach(item => {
-      const score = calculateMatchScore(item.designation, productName);
-      // Ajouter le score comme propriété de l'élément pour référence future
-      item.matchScore = score;
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestItem = item;
+    // Les articles sont déjà triés par score dans l'useEffect précédent
+    // Donc le premier article a le meilleur score
+    const bestMatch = receiptItems[0];
+    
+    // Vérifier si le score est suffisant (par exemple > 0.2 soit 20%)
+    if (bestMatch && bestMatch.matchScore > 0.2) {
+      console.log(`✅ Sélection automatique: ${bestMatch.designation} (${Math.round(bestMatch.matchScore * 100)}%)`);
+      // Sélectionner cet article
+      if (onSelect) {
+        onSelect(bestMatch);
       }
-    });
-    
-    // Sélectionner automatiquement si le score est suffisant (0.2 = 20%)
-    if (bestItem && bestScore > 0.2) {
-      onSelect(bestItem);
-      console.log(`Sélection automatique: ${bestItem.designation} (score: ${bestScore})`);
+    } else {
+      console.log("⚠️ Aucun article n'a un score suffisant pour la sélection automatique");
     }
   }
-}, [items, productName, selectedItem, onSelect]);
-
+}, [receiptItems, productName, selectedItem, onSelect]);
 
   // Démarrer l'édition d'un article
   const startEditing = (item) => {
@@ -83,7 +73,8 @@ useEffect(() => {
       designation: item.designation,
       quantite: item.quantite,
       prix_unitaire: item.prix_unitaire,
-      prix_total: item.prix_total
+      prix_total: item.prix_total,
+      receipt_id: item.receipt_id // Important pour les nouvelles insertions
     });
   };
 
@@ -94,7 +85,7 @@ useEffect(() => {
   };
 
   // Sauvegarder les modifications
-  const saveEditing = (itemId) => {
+  const saveEditing = async (itemId) => {
     const updatedItems = receiptItems.map(item => {
       if (item.id === itemId) {
         // Calculer automatiquement le prix total si nécessaire
@@ -109,6 +100,12 @@ useEffect(() => {
           prix_unitaire: prixUnitaire,
           prix_total: prixTotal
         };
+        
+        // Mettre à jour le score de correspondance si productName est disponible
+        if (productName) {
+          updatedItem.matchScore = calculateMatchScore(updatedItem.designation, productName);
+        }
+        
         return updatedItem;
       }
       return item;
@@ -117,6 +114,39 @@ useEffect(() => {
     setReceiptItems(updatedItems);
     setEditingItemId(null);
     setEditValues({});
+    
+    // Persister les modifications dans la base de données
+    if (itemId) {
+      try {
+        console.log("💾 Enregistrement des modifications pour l'article:", itemId);
+        const result = await updateReceiptItem(itemId, {
+          ...editValues,
+          receipt_id: editValues.receipt_id // Nécessaire pour les nouvelles insertions
+        });
+        
+        if (result.success) {
+          console.log("✅ Article mis à jour avec succès:", result.item);
+          
+          // Si c'est un nouvel article inséré, mettre à jour l'ID dans le tableau local
+          if (result.action === 'inserted' && result.item.id) {
+            const finalUpdatedItems = updatedItems.map(item => 
+              item.id === itemId ? { ...item, id: result.item.id } : item
+            );
+            setReceiptItems(finalUpdatedItems);
+            
+            // Notifier le parent des changements
+            if (onChange) {
+              onChange(finalUpdatedItems);
+            }
+            return;
+          }
+        } else {
+          console.error("❌ Erreur lors de la mise à jour de l'article:", result.error);
+        }
+      } catch (error) {
+        console.error("❌ Erreur critique lors de la mise à jour:", error);
+      }
+    }
     
     // Notifier le parent des changements
     if (onChange) {
@@ -151,7 +181,21 @@ useEffect(() => {
   };
 
   // Supprimer un article
-  const deleteItem = (itemId) => {
+  const deleteItem = async (itemId) => {
+    try {
+      console.log("🗑️ Suppression de l'article:", itemId);
+      
+      // Supprimer l'article de la base de données
+      const result = await deleteReceiptItem(itemId);
+      
+      if (!result.success) {
+        console.error("❌ Erreur lors de la suppression de l'article:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Erreur critique lors de la suppression:", error);
+    }
+    
+    // Mettre à jour l'état local, même en cas d'erreur de la base de données
     const updatedItems = receiptItems.filter(item => item.id !== itemId);
     setReceiptItems(updatedItems);
     
@@ -163,12 +207,23 @@ useEffect(() => {
 
   // Ajouter un nouvel article
   const addNewItem = () => {
+    // Trouver l'ID du ticket à partir des articles existants
+    const receiptId = receiptItems.length > 0 ? receiptItems[0].receipt_id : null;
+    
+    if (!receiptId) {
+      console.error("❌ Impossible d'ajouter un article: ID de ticket introuvable");
+      return;
+    }
+    
+    const newItemId = `temp-${Date.now()}`;
     const newItem = {
-      id: `temp-${Date.now()}`, // ID temporaire jusqu'à la sauvegarde en BDD
+      id: newItemId,
+      receipt_id: receiptId, // Important pour l'insertion en base de données
       designation: "Nouvel article",
       quantite: 1,
       prix_unitaire: 0,
-      prix_total: 0
+      prix_total: 0,
+      matchScore: productName ? calculateMatchScore("Nouvel article", productName) : 0
     };
     
     const updatedItems = [...receiptItems, newItem];
@@ -190,12 +245,6 @@ useEffect(() => {
     }
   };
 
-  // Calculer le taux de correspondance entre la désignation de l'article et le nom du produit
-  const getMatchScore = (designation) => {
-    if (!productName || !designation) return 0;
-    return calculateMatchScore(designation, productName);
-  };
-
   // Obtenir la classe CSS pour le badge du taux de correspondance
   const getMatchScoreClass = (score) => {
     if (score >= 0.8) return "bg-green-100 text-green-800";
@@ -206,11 +255,19 @@ useEffect(() => {
   return (
     <div className="mt-4">
       <div className="flex justify-between items-center mb-2">
-        <h4 className="font-medium text-gray-800">Articles du ticket</h4>
+  <h4 className="font-medium text-gray-800">
+    Articles du ticket ({receiptItems.length}) {/* Affiche le nombre total d'articles */}
+    {receiptItems.length > 7 && 
+      <span className="text-xs text-gray-500 ml-2">
+        (Faites défiler pour voir tous les articles)
+      </span>
+    }
+  </h4>
         <button
           type="button"
           onClick={addNewItem}
           className="flex items-center text-sm text-green-600 hover:text-green-800"
+          disabled={!receiptItems.some(item => item.receipt_id)}
         >
           <Plus size={16} className="mr-1" />
           Ajouter un article
@@ -223,7 +280,7 @@ useEffect(() => {
           <p className="mt-2 text-sm text-gray-500">Aucun article détecté sur ce ticket</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-none" style={{ minHeight: '600px' }}>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -302,14 +359,14 @@ useEffect(() => {
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             type="button"
-                            onClick={() => saveEditing(item.id)}
+                            onClick={(e) => { e.stopPropagation(); saveEditing(item.id); }}
                             className="text-green-600 hover:text-green-900"
                           >
                             <Check size={16} />
                           </button>
                           <button
                             type="button"
-                            onClick={cancelEditing}
+                            onClick={(e) => { e.stopPropagation(); cancelEditing(); }}
                             className="text-red-600 hover:text-red-900"
                           >
                             <X size={16} />
@@ -319,52 +376,52 @@ useEffect(() => {
                     </>
                   ) : (
                     // Mode affichage
-                    <>
-                      <td className="px-3 py-2 text-sm text-gray-800">
-                        {item.designation || 'Sans nom'}
+                   <>
+                    <td className="px-3 py-2 text-sm text-gray-800">
+                      {item.designation || 'Sans nom'}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center text-gray-800">
+                      {item.quantite || '1'}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-right text-gray-800">
+                      {(item.prix_unitaire || 0).toFixed(2)} €
+                    </td>
+                    <td className="px-3 py-2 text-sm text-right text-gray-800 font-medium">
+                      {(item.prix_total || 0).toFixed(2)} €
+                    </td>
+                    {productName && (
+                      <td className="px-3 py-2 text-sm text-center">
+                        {(() => {
+                          const score = item.matchScore || 0;
+                          const scoreClass = getMatchScoreClass(score);
+                          const percentage = Math.round(score * 100);
+                          return (
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${scoreClass}`}>
+                              {percentage}%
+                            </span>
+                          );
+                        })()}
                       </td>
-                      <td className="px-3 py-2 text-sm text-center text-gray-800">
-                        {item.quantite || '1'}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-right text-gray-800">
-                        {(item.prix_unitaire || 0).toFixed(2)} €
-                      </td>
-                      <td className="px-3 py-2 text-sm text-right text-gray-800 font-medium">
-                        {(item.prix_total || 0).toFixed(2)} €
-                      </td>
-                      {productName && (
-                        <td className="px-3 py-2 text-sm text-center">
-                          {(() => {
-                            const score = getMatchScore(item.designation);
-                            const scoreClass = getMatchScoreClass(score);
-                            const percentage = Math.round(score * 100);
-                            return (
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${scoreClass}`}>
-                                {percentage}%
-                              </span>
-                            );
-                          })()}
-                        </td>
-                      )}
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); startEditing(item); }}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
+                    )}
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); startEditing(item); }}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </>
                   )}
                 </tr>
               ))}

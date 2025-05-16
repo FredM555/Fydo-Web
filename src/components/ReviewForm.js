@@ -10,7 +10,8 @@ import {
 } from '../services/reviewService';
 import { formatDate, formatPrice } from '../utils/formatters';
 import { findBestMatchingItem } from '../utils/textSimilarityUtils';
-
+// Importation de la nouvelle fonction en haut du fichier
+import { getReceiptItems } from '../services/receiptAnalysisService';
 /**
  * Composant de formulaire pour créer un avis
  * @param {object} props - Propriétés du composant
@@ -147,75 +148,87 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
   };
   
   // Gestion du upload du ticket de caisse
-  const handleReceiptUpload = (receipt, url, extractedData) => {
-    setReceiptUploaded(true);
-    setReceiptId(receipt.id);
-    
-    // Stocker les données extraites par Claude AI localement
-    if (extractedData) {
-      console.log("Données extraites par Claude AI:", extractedData);
-      setAiData(extractedData);
+// Gestion du upload du ticket de caisse
+const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = []) => {
+  setReceiptUploaded(true);
+  setReceiptId(receipt.id);
+  
+  console.log("Ticket de caisse téléchargé avec ID:", receipt.id);
+  
+  // Utiliser les articles déjà chargés depuis l'analyse si disponibles
+  if (receiptItems && receiptItems.length > 0) {
+    console.log("🛒 Utilisation des articles déjà chargés:", receiptItems.length);
+    setReceiptItems(receiptItems);
+  } else {
+    // Charger les articles du ticket depuis la base de données
+    try {
+      console.log("🔍 Chargement des articles depuis la base de données pour le ticket:", receipt.id);
+      const { success, items, error } = await getReceiptItems(receipt.id);
       
-      // Mettre à jour les champs du formulaire avec les données extraites
-      if (extractedData.date) {
-        setPurchaseDate(extractedData.date);
+      if (success && items && items.length > 0) {
+        console.log("🛒 Articles chargés depuis la base de données:", items.length);
+        setReceiptItems(items);
+      } else if (error) {
+        console.error("❌ Erreur lors du chargement des articles:", error);
+      } else {
+        console.warn("⚠️ Aucun article trouvé pour ce ticket");
       }
-      
-      if (extractedData.store) {
-        setStoreName(extractedData.store);
-      }
-      
-      if (extractedData.price) {
-        setPurchasePrice(extractedData.price.toString());
-      }
-      
-      // Gérer les articles extraits du ticket
-      if (extractedData.articles && Array.isArray(extractedData.articles)) {
-        // Ajouter un ID temporaire à chaque article pour la gestion dans le composant
-        const itemsWithIds = extractedData.articles.map((item, index) => ({
-          ...item,
-          id: `ai-item-${index}`,
-          // Convertir les chaînes en nombres si nécessaire
-          quantite: typeof item.quantite === 'string' ? parseFloat(item.quantite) : item.quantite,
-          prix_unitaire: typeof item.prix_unitaire === 'string' ? parseFloat(item.prix_unitaire) : item.prix_unitaire,
-          prix_total: typeof item.prix_total === 'string' ? parseFloat(item.prix_total) : item.prix_total
-        }));
-        
-        setReceiptItems(itemsWithIds);
-        
-        // Utiliser findBestMatchingItem pour identifier l'article le plus probable
-        if (product && product.product_name) {
-          const { item, score } = findBestMatchingItem(itemsWithIds, product);
-          console.log(`Meilleure correspondance: ${item?.designation || 'Aucune'} (score: ${score})`);
-          
-          // Enregistrer le score pour la logique de validation et d'alerte
-          setMatchScore(score);
-          
-          // Afficher une alerte si le score est faible
-          setShowLowMatchAlert(score < 0.8);
-          
-          // Sélectionner automatiquement l'article avec la correspondance la plus élevée
-          if (item) {
-            setSelectedItem(item);
-            
-            // Mettre à jour le prix d'achat avec le prix de l'article le plus probable
-            if (item.prix_total) {
-              setPurchasePrice(item.prix_total.toString());
-            }
-            
-            // Effacer l'erreur de validation liée à la sélection d'article
-            setValidationErrors(prev => ({
-              ...prev,
-              selectedItem: null
-            }));
-          }
-        }
-      }
-      
-      // Indiquer que les données AI sont disponibles
-      setAiDataAvailable(true);
+    } catch (err) {
+      console.error("❌ Erreur critique lors du chargement des articles:", err);
     }
-  };
+  }
+  
+  // Rechercher l'article correspondant au produit si des articles sont disponibles
+  if (receiptItems.length > 0 && product && product.product_name) {
+    console.log("🔍 Recherche du meilleur article correspondant au produit:", product.product_name);
+    const { item, score } = findBestMatchingItem(receiptItems, product);
+    console.log(`Meilleure correspondance: ${item?.designation || 'Aucune'} (score: ${score})`);
+    
+    // Enregistrer le score pour la logique de validation et d'alerte
+    setMatchScore(score);
+    
+    // Afficher une alerte si le score est faible
+    setShowLowMatchAlert(score < 0.8);
+    
+    // Sélectionner automatiquement l'article avec la correspondance la plus élevée
+    if (item) {
+      setSelectedItem(item);
+      
+      // Mettre à jour le prix d'achat avec le prix de l'article le plus probable
+      if (item.prix_total) {
+        setPurchasePrice(item.prix_total.toString());
+      }
+      
+      // Effacer l'erreur de validation liée à la sélection d'article
+      setValidationErrors(prev => ({
+        ...prev,
+        selectedItem: null
+      }));
+    }
+  }
+  
+  // Stocker les données extraites par Claude AI localement
+  if (extractedData) {
+    console.log("Données extraites par Claude AI:", extractedData);
+    setAiData(extractedData);
+    
+    // Mettre à jour les champs du formulaire avec les données extraites
+    if (extractedData.date) {
+      setPurchaseDate(extractedData.date);
+    }
+    
+    if (extractedData.store) {
+      setStoreName(extractedData.store);
+    }
+    
+    if (extractedData.price) {
+      setPurchasePrice(extractedData.price.toString());
+    }
+    
+    // Indiquer que les données AI sont disponibles
+    setAiDataAvailable(true);
+  }
+};
   
   // Gestion des mises à jour des articles du ticket
   const handleReceiptItemsChange = (updatedItems) => {
@@ -631,10 +644,12 @@ const ReviewForm = ({ product, onSuccess, onCancel }) => {
               )}
               
               {/* Liste d'articles repliable */}
-              <div 
-                className={`transition-all duration-300 overflow-hidden border ${isItemListExpanded ? 'border-gray-200 max-h-96 opacity-100 p-3 mb-3' : 'border-transparent max-h-0 opacity-0 p-0'}`}
-                style={{ marginTop: isItemListExpanded ? '0.75rem' : '0' }}
-              >
+<div 
+  className={`transition-all duration-300 overflow-auto border ${
+    isItemListExpanded ? 'border-gray-200 max-h-[500px] opacity-100 p-3 mb-3' : 'border-transparent max-h-0 opacity-0 p-0'
+  }`}
+  style={{ marginTop: isItemListExpanded ? '0.75rem' : '0' }}
+>
                 <ReceiptItemSelector 
                   items={receiptItems}
                   onChange={handleReceiptItemsChange}
