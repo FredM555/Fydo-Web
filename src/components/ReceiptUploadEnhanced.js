@@ -1,6 +1,6 @@
 // src/components/ReceiptUploadEnhanced.js
 import React, { useState, useRef } from 'react';
-import { Upload, X, Check, AlertCircle, FileText, Camera } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadReceipt } from '../services/storageService';
 import { analyzeAndProcessReceipt } from '../services/receiptAnalysisService';
@@ -15,11 +15,13 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);
   const [aiProcessing, setAiProcessing] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
   const fileInputRef = useRef(null);
   
   // Gestion de la sélection du fichier
   const handleFileChange = async (e) => {
     setError(null);
+    setAnalysisError(null);
     
     // Vérifier si l'utilisateur est connecté
     if (!currentUser) {
@@ -67,6 +69,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
     console.log("🔄 Début du processus d'upload et d'analyse du ticket");
     setUploading(true);
     setError(null);
+    setAnalysisError(null);
     setProgress(0);
     
     // Simulation de progression pendant l'upload
@@ -108,10 +111,30 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
       
       console.log("📊 Résultat de l'analyse:", analysisResult);
       
-      // 3. Gérer le résultat
+      // 3. Vérifier si l'analyse a réussi
       if (!analysisResult.success) {
-        console.warn("⚠️ Analyse du ticket incomplète:", analysisResult.error);
-        // Continuer malgré l'erreur d'analyse, l'image a bien été téléchargée
+        console.warn("⚠️ Analyse du ticket échouée:", analysisResult.error);
+        
+        // Si l'erreur est due au fait que l'image n'est pas un ticket
+        if (analysisResult.data && analysisResult.data.is_receipt === false) {
+          setAnalysisError({
+            type: 'not_receipt',
+            message: "Ce document n'est pas un ticket de caisse",
+            details: analysisResult.data.detection_reason || "Veuillez télécharger une image claire d'un ticket de caisse."
+          });
+        } else {
+          // Autres erreurs d'analyse
+          setAnalysisError({
+            type: 'analysis_failed',
+            message: "L'analyse du ticket a échoué",
+            details: analysisResult.error || "Veuillez vérifier que l'image est claire et réessayer."
+          });
+        }
+        
+        setProgress(0);
+        setUploading(false);
+        setAiProcessing(false);
+        return;
       }
       
       setProgress(100);
@@ -120,8 +143,8 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
       // 4. Appeler le callback avec toutes les données
       console.log("🏁 Processus terminé, transmission des données au parent");
       if (onUploadComplete) {
-        const analysisData = analysisResult.success ? analysisResult.data : null;
-        const receiptItems = analysisResult.success ? analysisResult.createdItems : [];
+        const analysisData = analysisResult.data;
+        const receiptItems = analysisResult.createdItems;
         
         console.log("📤 Données envoyées au composant parent:", {
           receipt: uploadResult.receipt,
@@ -156,6 +179,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
     setUploading(false);
     setUploadSuccess(false);
     setError(null);
+    setAnalysisError(null);
     setProgress(0);
     
     if (fileInputRef.current) {
@@ -178,6 +202,9 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
     }
   };
 
+  // Déterminer s'il faut afficher l'erreur d'analyse
+  const shouldShowAnalysisError = analysisError && (file || preview);
+
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden">
       <div className="p-6">
@@ -193,6 +220,31 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
             <span>Assurez-vous que le nom du produit et la date d'achat sont clairement visibles</span>
           </div>
         </div>
+        
+        {/* Affichage de l'erreur d'analyse */}
+        {shouldShowAnalysisError && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start">
+              {analysisError.type === 'not_receipt' ? (
+                <FileQuestion className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 mt-0.5" />
+              )}
+              <div>
+                <h3 className="font-medium text-red-700">{analysisError.message}</h3>
+                <p className="text-sm text-red-600 mt-1">{analysisError.details}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        )}
         
         {!file ? (
           <div className="space-y-4">
@@ -246,7 +298,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
                 className="w-full h-auto rounded-lg max-h-64 object-contain bg-gray-100"
               />
               
-              {!uploadSuccess && (
+              {!uploadSuccess && !shouldShowAnalysisError && (
                 <button
                   type="button"
                   onClick={handleReset}
@@ -279,7 +331,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
               </div>
             )}
             
-            {!uploadSuccess ? (
+            {!uploadSuccess && !shouldShowAnalysisError ? (
               <div className="flex space-x-2">
                 <button
                   type="button"
@@ -314,7 +366,7 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
                   )}
                 </button>
               </div>
-            ) : (
+            ) : !shouldShowAnalysisError && (
               <div className="text-center">
                 <div className="flex items-center justify-center text-green-600 mb-2">
                   <Check size={18} className="mr-1" />
@@ -344,6 +396,6 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
       </div>
     </div>
   );
-}; 
+};
 
 export default ReceiptUploadEnhanced;

@@ -1,4 +1,4 @@
-// src/services/receiptAnalysisService.js
+// src/services/receiptAnalysisService.js - Version corrigée
 import { supabase } from '../supabaseClient';
 
 /**
@@ -76,14 +76,50 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
     
     console.log("✅ Réponse API reçue:", analysisResult);
     
-    if (!analysisResult.receipt) {
-      console.error("❌ Structure incorrecte dans la réponse API - Pas de section 'receipt'");
-      // Retourner un résultat simple pour que le processus puisse continuer
+    // Vérifier d'abord si l'image est un ticket de caisse
+    if (analysisResult.is_receipt === false) {
+      console.error("⚠️ L'image n'est pas un ticket de caisse:", analysisResult.detection_reason);
+      
+      // Mettre à jour le statut du ticket dans la base de données pour indiquer que ce n'est pas un ticket valide
+      try {
+        await supabase
+          .from('receipts')
+          .update({ status: 'invalid_receipt' })
+          .eq('id', receiptId);
+      } catch (updateError) {
+        console.error("⚠️ Erreur lors de la mise à jour du statut du ticket:", updateError);
+      }
+      
+      // Retourner un résultat qui indique que ce n'est pas un ticket
       return {
         success: false,
-        error: "L'analyse du ticket n'a pas produit de résultats valides",
-        data: null
+        error: "L'image n'est pas un ticket de caisse",
+        data: analysisResult,
+        receiptId: receiptId
       };
+    }
+    
+    // S'assurer que la structure est complète, créer une structure vide si nécessaire
+    if (!analysisResult.receipt) {
+      console.error("⚠️ Structure incomplète dans la réponse API - Création d'un objet receipt vide");
+      analysisResult.receipt = {
+        enseigne: {
+          nom: "Enseigne inconnue",
+          adresse1: "",
+          adresse2: "",
+          code_postal: "",
+          ville: "",
+          siret: ""
+        },
+        date: null,
+        totalHt: null,
+        total: null
+      };
+    }
+    
+    if (!analysisResult.articles) {
+      console.error("⚠️ Structure incomplète dans la réponse API - Création d'un tableau articles vide");
+      analysisResult.articles = [];
     }
 
     // 2. Traiter et enregistrer les données du ticket dans la base de données
@@ -136,6 +172,7 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
       receiptId: receiptId, // Toujours retourner l'ID du ticket même si la mise à jour a échoué
       createdItems: createdItems, // Retourner les articles créés pour utilisation immédiate
       data: {
+        is_receipt: true,
         date: receipt.date,
         store: enseigne.nom,
         price: receipt.total,
