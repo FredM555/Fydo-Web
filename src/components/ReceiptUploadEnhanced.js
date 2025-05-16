@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadReceipt, getRecentReceipts } from '../services/storageService';
+import { uploadReceipt, getRecentReceipts , deleteReceipt } from '../services/storageService';
 import { analyzeAndProcessReceipt, getReceiptItems } from '../services/receiptAnalysisService';
 import { formatDate } from '../utils/formatters';
 
@@ -147,6 +147,23 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
         
         // Si l'erreur est due au fait que l'image n'est pas un ticket
         if (analysisResult.data && analysisResult.data.is_receipt === false) {
+        // MODIFICATION: Supprimer le document qui n'est pas un ticket
+        console.log("🗑️ Suppression du document non-ticket:", uploadResult.receipt.id);
+        
+        try {
+          const deleteResult = await deleteReceipt(uploadResult.receipt.id, userDetails.id);
+          
+          if (deleteResult.success) {
+            console.log("✅ Document non-ticket supprimé avec succès");
+          } else {
+            console.error("⚠️ Échec de la suppression du document non-ticket:", deleteResult.error);
+          }
+        } catch (deleteError) {
+          console.error("❌ Erreur lors de la suppression du document non-ticket:", deleteError);
+        }
+        
+        // Afficher le message d'erreur à l'utilisateur
+  
           setAnalysisError({
             type: 'not_receipt',
             message: "Ce document n'est pas un ticket de caisse",
