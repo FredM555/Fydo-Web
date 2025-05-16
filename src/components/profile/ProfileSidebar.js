@@ -14,7 +14,8 @@ import {
   Star,
   Heart,
   Award,
-  Crown
+  Crown,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext'; 
 
@@ -169,7 +170,14 @@ const ProfileSidebar = ({ currentUser, onLogout, loading }) => {
           >
             <Heart size={18} className="mr-3 shrink-0" />
             <span>Mes favoris</span>
-          </Link>       
+          </Link>
+           <Link 
+  to="/mes-tickets" 
+  className={`flex items-center px-3 py-2 rounded-md w-full transition h-10 ${isActivePath('/mes-tickets') ? 'bg-green-50 text-green-700' : 'hover:bg-gray-100 text-gray-700'}`}
+>
+  <Receipt size={18} className="mr-3 shrink-0" />
+  <span>Mes tickets</span>
+</Link>      
           <Link 
             to="/mes-avis" 
             className={`flex items-center px-3 py-2 rounded-md w-full transition h-10 ${isActivePath('/mes-avis') ? 'bg-green-50 text-green-700' : 'hover:bg-gray-100 text-gray-700'}`}

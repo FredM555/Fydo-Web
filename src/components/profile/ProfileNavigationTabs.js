@@ -1,4 +1,4 @@
-// src/components/profile/ProfileNavigationTabs.js
+// src/components/profile/ProfileNavigationTabs.js - Mise à jour complète
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -6,7 +6,8 @@ import {
   Settings, 
   History, 
   Star, 
-  Heart
+  Heart,
+  Receipt
 } from 'lucide-react';
 
 /**
@@ -27,11 +28,12 @@ const ProfileNavigationTabs = () => {
     { path: '/historique-produits', icon: <History size={20} />, label: 'Historique' },
     { path: '/mes-favoris', icon: <Heart size={20} />, label: 'Favoris' },
     { path: '/mes-avis', icon: <Star size={20} />, label: 'Avis' },
+    { path: '/mes-tickets', icon: <Receipt size={20} />, label: 'Tickets' },
   ];
   
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white shadow-top border-t border-gray-200 md:hidden z-10 mobile-nav-menu">
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {tabs.map((tab) => (
           <Link
             key={tab.path}

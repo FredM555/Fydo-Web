@@ -34,6 +34,8 @@ import EditProfile from './components/profile/EditProfile';
 import FavoritesList from './components/profile/FavoritesList';
 import ProductHistory  from './components/profile/ProductHistory';
 import UserReviews from './components/profile/UserReviews';
+// N'oubliez pas d'importer le composant en haut du fichier:
+import ReceiptsList from './components/profile/ReceiptsList';
 
 // Import de la nouvelle page Challenges
 import ChallengesPage from './pages/ChallengesPage';
@@ -113,6 +115,10 @@ function App() {
             } />
             <Route path="/mes-avis" element={
               <PrivateRoute element={<UserReviews />} />
+            } />
+            {/* Route pour la liste des tickets */}
+            <Route path="/mes-tickets" element={
+              <PrivateRoute element={<ReceiptsList />} />
             } />
             <Route path="/historique-produits" element={
               <PrivateRoute element={<ProductHistory />} />
