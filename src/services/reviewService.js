@@ -1,5 +1,7 @@
 // src/services/reviewService.js (mise à jour)
 import { supabase } from '../supabaseClient';
+// src/services/reviewService.js - Ajoutez cet import en haut du fichier
+import { linkReceiptItemToReview } from './receiptService';
 
 /**
  * Récupère tous les critères d'évaluation disponibles
@@ -192,6 +194,7 @@ export const addProductReview = async (
       .from('product_reviews')
       .select('id')
       .eq('user_id', userId)
+      .neq('status','rejected')
       .eq('product_code', productCode)
       .single();
       
@@ -220,6 +223,7 @@ export const addProductReview = async (
       location,
       storeName,
       authorizeSharing = false,
+      selectedItemId = null, // Récupération de l'ID de l'article sélectionné
       receiptItems = [],
       matchScore = 0 // Nouveau: score de correspondance pour la logique de statut
     } = purchaseInfo;
@@ -261,6 +265,7 @@ export const addProductReview = async (
           product_code: productCode,
           comment: comment,
           receipt_id: receiptId,
+          receipt_item_id: selectedItemId, // Ajout de la liaison avec l'article sélectionné
           is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
           status: reviewStatus, // Statut déterminé par le taux de correspondance
           match_score: matchScore, // Enregistrer le score de correspondance
@@ -295,6 +300,21 @@ export const addProductReview = async (
       
     if (ratingsError) throw ratingsError;
 
+    // Si un article est sélectionné, utilisez la fonction linkReceiptItemToReview pour le marquer
+    if (selectedItemId && receiptId) {
+      try {
+        console.log(`Liaison de l'article ${selectedItemId} à l'avis ${newReview.id}`);
+        const linkResult = await linkReceiptItemToReview(newReview.id, selectedItemId);
+        
+        if (!linkResult.success) {
+          console.warn("Avertissement: La liaison article-avis a échoué:", linkResult.error);
+          // Ne pas faire échouer l'ensemble du processus pour cette raison
+        }
+      } catch (linkError) {
+        console.error("Erreur lors de la liaison article-avis:", linkError);
+        // Ne pas faire échouer l'ensemble du processus pour cette raison
+      }
+    }
     // Mettre à jour les articles du ticket pour les lier à l'avis
     if (receiptId && receiptItems && receiptItems.length > 0) {
       console.log("Articles du ticket à associer:", receiptItems);
@@ -703,6 +723,7 @@ export const canUserLeaveReview = async (userId, productCode) => {
       .select('creation_date')
       .eq('user_id', userId)
       .eq('product_code', productCode)
+      .neq('status','rejected')
       .order('creation_date', { ascending: false })
       .limit(1);
       
