@@ -1,9 +1,10 @@
-// src/components/ReceiptUploadEnhanced.js
-import React, { useState, useRef } from 'react';
-import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle } from 'lucide-react';
+// src/components/ReceiptUploadEnhanced.js (modifié)
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadReceipt } from '../services/storageService';
-import { analyzeAndProcessReceipt } from '../services/receiptAnalysisService';
+import { uploadReceipt, getRecentReceipts } from '../services/storageService';
+import { analyzeAndProcessReceipt, getReceiptItems } from '../services/receiptAnalysisService';
+import { formatDate } from '../utils/formatters';
 
 const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productName = null }) => {
   const { currentUser, userDetails } = useAuth();
@@ -16,7 +17,36 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
   const [progress, setProgress] = useState(0);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
+  
+  // Nouvel état pour les tickets récents
+  const [recentReceipts, setRecentReceipts] = useState([]);
+  const [loadingReceipts, setLoadingReceipts] = useState(false);
+  
   const fileInputRef = useRef(null);
+  
+  // Charger les tickets récents au chargement du composant
+  useEffect(() => {
+    if (currentUser && userDetails) {
+      fetchRecentReceipts();
+    }
+  }, [currentUser, userDetails]);
+  
+  // Fonction pour charger les tickets récents
+  const fetchRecentReceipts = async () => {
+    if (!currentUser || !userDetails) return;
+    
+    setLoadingReceipts(true);
+    try {
+      const result = await getRecentReceipts(userDetails.id, 3);
+      if (result.success) {
+        setRecentReceipts(result.receipts || []);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement des tickets récents:", err);
+    } finally {
+      setLoadingReceipts(false);
+    }
+  };
   
   // Gestion de la sélection du fichier
   const handleFileChange = async (e) => {
@@ -140,19 +170,14 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
       setProgress(100);
       setUploadSuccess(true);
       
+      // Rafraîchir la liste des tickets récents
+      fetchRecentReceipts();
+      
       // 4. Appeler le callback avec toutes les données
       console.log("🏁 Processus terminé, transmission des données au parent");
       if (onUploadComplete) {
         const analysisData = analysisResult.data;
         const receiptItems = analysisResult.createdItems;
-        
-        console.log("📤 Données envoyées au composant parent:", {
-          receipt: uploadResult.receipt,
-          receiptId: uploadResult.receipt.id,
-          url: uploadResult.url,
-          analysisData,
-          receiptItems
-        });
         
         onUploadComplete(
           uploadResult.receipt,
@@ -169,6 +194,47 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
     } finally {
       setUploading(false);
       setAiProcessing(false);
+    }
+  };
+  
+  // Fonction pour utiliser un ticket existant
+  const handleUseExistingReceipt = async (receipt) => {
+    setUploading(true);
+    setError(null);
+    setProgress(50);
+    
+    try {
+      console.log("🔄 Utilisation d'un ticket existant:", receipt.id);
+      
+      // Charger les articles du ticket
+      const { success, items } = await getReceiptItems(receipt.id);
+      
+      if (!success) {
+        throw new Error("Impossible de charger les articles du ticket");
+      }
+      
+      setProgress(100);
+      setUploadSuccess(true);
+      
+      // Appeler le callback avec toutes les données
+      if (onUploadComplete) {
+        // Extraire les informations de base du ticket
+        const basicData = {
+          is_receipt: true,
+          date: receipt.receipt_date,
+          store: "Ticket existant", // Pourrait être amélioré si l'enseigne est stockée
+          price: receipt.total_ttc,
+          items: items.length
+        };
+        
+        onUploadComplete(receipt, receipt.firebase_url, basicData, items);
+      }
+    } catch (err) {
+      console.error("❌ Erreur lors de l'utilisation du ticket existant:", err);
+      setError(err.message || "Impossible d'utiliser ce ticket. Veuillez réessayer.");
+      setProgress(0);
+    } finally {
+      setUploading(false);
     }
   };
   
@@ -204,6 +270,91 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
 
   // Déterminer s'il faut afficher l'erreur d'analyse
   const shouldShowAnalysisError = analysisError && (file || preview);
+  
+  // Fonction pour obtenir le nom de l'enseigne
+  const getEnseigneName = (receipt) => {
+    // Si l'enseigne est directement liée et chargée
+    if (receipt.enseignes && receipt.enseignes.nom) {
+      return receipt.enseignes.nom;
+    }
+    
+    // Si on a l'ID d'enseigne mais pas l'objet complet
+    if (receipt.enseigne_id) {
+      return "Magasin enregistré";
+    }
+    
+    return "Magasin inconnu";
+  };
+  
+  // Rendu des tickets récents
+  const renderRecentReceipts = () => {
+    if (loadingReceipts) {
+      return (
+        <div className="p-3 bg-gray-50 rounded-lg text-center">
+          <div className="animate-pulse h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+          <div className="animate-pulse h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        </div>
+      );
+    }
+    
+    if (!recentReceipts.length) {
+      return null;
+    }
+    
+    return (
+      <div className="mb-6">
+        <h4 className="text-sm font-medium mb-2 flex items-center text-gray-700">
+          <Clock size={14} className="mr-1 text-green-600" />
+          Tickets récents (7 derniers jours)
+        </h4>
+        
+        <div className="space-y-2">
+          {recentReceipts.map(receipt => (
+            <div 
+              key={receipt.id}
+              className="p-3 bg-green-50 hover:bg-green-100 rounded-lg flex justify-between items-center cursor-pointer border border-green-200 transition"
+              onClick={() => handleUseExistingReceipt(receipt)}
+            >
+              {/* Miniature du ticket si disponible */}
+              {receipt.firebase_url && (
+                <div className="w-16 h-16 mr-3 rounded-md overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                  <img 
+                    src={receipt.firebase_url} 
+                    alt="Miniature du ticket" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null; 
+                      e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23cccccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'%3E%3C/path%3E%3Cpolyline points='17 8 12 3 7 8'%3E%3C/polyline%3E%3Cline x1='12' y1='3' x2='12' y2='15'%3E%3C/line%3E%3C/svg%3E";
+                    }}
+                  />
+                </div>
+              )}
+              
+              <div className="flex-grow min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">
+                  Ticket du {formatDate(receipt.upload_date)}
+                </p>
+                <div className="flex flex-wrap items-center text-xs text-gray-600 mt-1">
+                  {receipt.total_ttc && (
+                    <span className="inline-flex items-center mr-2">
+                      <span>Total: {receipt.total_ttc.toFixed(2)}€</span>
+                    </span>
+                  )}
+                  <span className="inline-flex items-center">
+                    <span>{getEnseigneName(receipt)}</span>
+                  </span>
+                </div>
+              </div>
+              
+              <button className="p-1 text-green-600 hover:text-green-800 ml-2 flex-shrink-0">
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden">
@@ -220,6 +371,9 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
             <span>Assurez-vous que le nom du produit et la date d'achat sont clairement visibles</span>
           </div>
         </div>
+        
+        {/* Affichage des tickets récents */}
+        {!file && !uploadSuccess && renderRecentReceipts()}
         
         {/* Affichage de l'erreur d'analyse */}
         {shouldShowAnalysisError && (

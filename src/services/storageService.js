@@ -201,3 +201,47 @@ export const deleteReceipt = async (receiptId, userId) => {
     };
   }
 };
+
+
+/**
+ * Récupère les tickets de caisse récents de l'utilisateur (7 derniers jours)
+ * @param {string} userId - ID Supabase de l'utilisateur
+ * @param {number} limit - Nombre maximum de tickets à récupérer (défaut: 3)
+ * @returns {Promise<Object>} - Résultat de la récupération
+ */
+export const getRecentReceipts = async (userId, limit = 3) => {
+  try {
+    // Calculer la date d'il y a 7 jours
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    // Récupérer les tickets de caisse des 7 derniers jours
+    // Inclure également les données de l'enseigne si disponibles
+    const { data, count, error } = await supabase
+      .from('receipts')
+      .select(`
+        *,
+        enseignes(id, nom)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'analyzed')
+      .gte('upload_date', sevenDaysAgo.toISOString())
+      .order('upload_date', { ascending: false })
+      .limit(limit);
+      
+    if (error) throw error;
+    
+    return {
+      success: true,
+      receipts: data,
+      total: count
+    };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tickets récents:', error);
+    return {
+      success: false,
+      error: error.message,
+      receipts: []
+    };
+  }
+};
