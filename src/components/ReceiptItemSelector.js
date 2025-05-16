@@ -63,7 +63,7 @@ useEffect(() => {
     } else {
       console.log("⚠️ Aucun article n'a un score suffisant pour la sélection automatique");
     }
-  }
+  } 
 }, [receiptItems, productName, selectedItem, onSelect]);
 
   // Démarrer l'édition d'un article

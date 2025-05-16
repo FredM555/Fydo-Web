@@ -644,12 +644,12 @@ const handleReceiptUpload = async (receipt, url, extractedData, receiptItems = [
               )}
               
               {/* Liste d'articles repliable */}
-<div 
-  className={`transition-all duration-300 overflow-auto border ${
-    isItemListExpanded ? 'border-gray-200 max-h-[500px] opacity-100 p-3 mb-3' : 'border-transparent max-h-0 opacity-0 p-0'
-  }`}
-  style={{ marginTop: isItemListExpanded ? '0.75rem' : '0' }}
->
+              <div 
+                className={`transition-all duration-300 overflow-auto border ${
+                  isItemListExpanded ? 'border-gray-200 max-h-[500px] opacity-100 p-3 mb-3' : 'border-transparent max-h-0 opacity-0 p-0'
+                }`}
+                style={{ marginTop: isItemListExpanded ? '0.75rem' : '0' }}
+              >
                 <ReceiptItemSelector 
                   items={receiptItems}
                   onChange={handleReceiptItemsChange}

@@ -450,7 +450,7 @@ export const deleteReceiptItem = async (itemId) => {
       error: error.message
     };
   }
-};
+}; 
 
 export default {
   getReceiptItems,

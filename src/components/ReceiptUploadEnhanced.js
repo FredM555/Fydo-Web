@@ -344,6 +344,6 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
       </div>
     </div>
   );
-};
+}; 
 
 export default ReceiptUploadEnhanced;

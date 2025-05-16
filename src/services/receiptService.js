@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
  * @returns {Promise<Object>} - Liste des articles avec informations de succès/erreur
  */
 export const getReceiptItems = async (receiptId) => {
-  try {
+  try { 
     console.log("🔍 Chargement des articles pour le ticket ID:", receiptId);
     
     if (!receiptId) {
