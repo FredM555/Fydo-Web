@@ -21,7 +21,8 @@ const useSubscriptionPermissions = () => {
     maxReviewAccess: 0,
     canAccessFavorites: false,
     canAccessHistory: false,
-    canAccessDetailedInfo: false
+    canAccessDetailedInfo: false,
+  canAccessNutri: false // Ajout de la propriété
   });
   
   const [loading, setLoading] = useState(true);
@@ -128,6 +129,10 @@ const useSubscriptionPermissions = () => {
       case 'detailed_info':
         result = userLimits.canAccessDetailedInfo;
         break;
+            // Nouveau cas pour les informations nutritionnelles
+      case 'nutrition_info':
+      result = userLimits.canAccessNutri;
+      break;
       default:
         result = false;
     }

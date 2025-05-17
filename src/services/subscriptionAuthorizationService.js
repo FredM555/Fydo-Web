@@ -36,7 +36,8 @@ export const getSubscriptionLimits = async (planName = 'Gratuit') => {
         maxReviewAccess: data.max_consult_avis || 0,
         canAccessFavorites: data.can_favorite || false,
         canAccessHistory: data.can_history || false,
-        canAccessDetailedInfo: data.can_access_detailed_info || false
+        canAccessDetailedInfo: data.can_access_detailed_info || false,
+        canAccessNutri: data.can_nutri || false
       }
     };
   } catch (error) {
@@ -175,6 +176,11 @@ export const checkActionAuthorization = async (userId, actionType) => {
         isAuthorized = limits.canAccessDetailedInfo;
         reason = !isAuthorized ? 'Détails complets disponibles avec un abonnement' : '';
         break;
+              // Nouveau cas pour les informations nutritionnelles
+      case 'nutrition_info':
+        isAuthorized = limits.canAccessNutri;
+        reason = !isAuthorized ? 'Informations nutritionnelles détaillées disponibles avec un abonnement' : '';
+        break;
       default:
         isAuthorized = false;
         reason = 'Type d\'action non reconnu';
@@ -234,7 +240,9 @@ export const getActionDeniedMessage = (actionType, usage, limits) => {
       return 'L\'accès à l\'historique complet est disponible uniquement avec un abonnement';
     case 'detailed_info':
       return 'Les informations détaillées sont disponibles uniquement avec un abonnement';
-    default:
+     case 'nutrition_info':
+      return 'L\'accès aux informations de score est disponible uniquement avec un abonnement premium';
+     default:
       return 'Cette fonctionnalité n\'est pas disponible avec votre abonnement actuel';
   }
   
