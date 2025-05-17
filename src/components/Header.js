@@ -430,6 +430,10 @@ const Header = () => {
                         <MobileNavLink to="/mes-favoris" icon={<Heart size={18} />}>
                           Mes favoris
                         </MobileNavLink>
+
+                        <MobileNavLink to="/mes-tickets" icon={<MessageSquare size={18} />}>
+                          Mes tickets
+                        </MobileNavLink>
                         
                         <MobileNavLink to="/mes-avis" icon={<MessageSquare size={18} />}>
                           Mes avis
