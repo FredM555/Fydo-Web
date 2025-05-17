@@ -398,40 +398,59 @@ const ProductHistory = () => {
                 const { productInfo, interactions } = productData;
                 const isExpanded = expandedProducts[productKey] || false;
                 
+                // URL du produit (pour les produits réels) ou de la recherche (pour les recherches par nom)
+                const productUrl = productInfo.interaction_type === 'searchName'
+                  ? `/recherche-filtre?q=${encodeURIComponent(productInfo.product_name || '')}`
+                  : `/recherche-filtre?barcode=${productInfo.product_code}`;
+                
                 return (
                   <div key={productKey} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                     {/* En-tête du produit avec la dernière interaction */}
                     <div className="p-4">
                       <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 mr-4">
-                          {productInfo.interaction_type === 'searchName' ? (
+                        {/* Image du produit - maintenant cliquable pour les produits réels */}
+                        {productInfo.interaction_type === 'searchName' ? (
+                          <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 mr-4">
                             <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-600">
                               <Search size={20} />
                             </div>
-                          ) : productInfo.product_image_url ? (
-                            <img 
-                              src={productInfo.product_image_url} 
-                              alt={productInfo.product_name || 'Produit'} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => e.target.src = '/placeholder.png'}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-300">
-                              <Search size={20} />
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <Link 
+                            to={productUrl}
+                            className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 mr-4 cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            {productInfo.product_image_url ? (
+                              <img 
+                                src={productInfo.product_image_url} 
+                                alt={productInfo.product_name || 'Produit'} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => e.target.src = '/placeholder.png'}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <Search size={20} />
+                              </div>
+                            )}
+                          </Link>
+                        )}
                         
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-medium text-green-800">
-                                {productInfo.interaction_type === 'searchName' 
-                                  ? `"${productInfo.product_name || 'Terme de recherche'}"` 
-                                  : productInfo.product_name || 'Produit sans nom'}
-                              </h3>
-                              {productInfo.product_brand && productInfo.interaction_type !== 'searchName' && (
-                                <p className="text-sm text-gray-600">{productInfo.product_brand} -  {productInfo.product_code}</p>
+                              {productInfo.interaction_type === 'searchName' ? (
+                                <h3 className="font-medium text-green-800">
+                                  {`"${productInfo.product_name || 'Terme de recherche'}"`}
+                                </h3>
+                              ) : (
+                                <Link to={productUrl} className="hover:text-green-700 transition-colors">
+                                  <h3 className="font-medium text-green-800">
+                                    {productInfo.product_name || 'Produit sans nom'}
+                                  </h3>
+                                  {productInfo.product_brand && (
+                                    <p className="text-sm text-gray-600">{productInfo.product_brand} - {productInfo.product_code}</p>
+                                  )}
+                                </Link>
                               )}
                               
                               {/* Affichage spécifique pour les recherches par nom */}
@@ -482,21 +501,14 @@ const ProductHistory = () => {
                               </time>
                             </div>
                             
-                            {/* Lien vers la recherche ou le produit selon le type d'élément */}
+                            {/* Lien vers la recherche pour les recherches par nom */}
                             <div className="flex items-center space-x-3">
-                              {productInfo.interaction_type === 'searchName' ? (
+                              {productInfo.interaction_type === 'searchName' && (
                                 <Link
-                                  to={`/recherche-filtre?q=${encodeURIComponent(productInfo.product_name || '')}`}
+                                  to={productUrl}
                                   className="inline-flex items-center text-orange-600 hover:text-orange-800 text-sm"
                                 >
                                   Relancer la recherche <ExternalLink size={14} className="ml-1" />
-                                </Link>
-                              ) : (
-                                <Link
-                                  to={`/recherche-filtre?barcode=${productInfo.product_code}`}
-                                  className="inline-flex items-center text-green-600 hover:text-green-800 text-sm"
-                                >
-                                  Voir le produit <ExternalLink size={14} className="ml-1" />
                                 </Link>
                               )}
                               
