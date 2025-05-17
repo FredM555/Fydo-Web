@@ -229,14 +229,12 @@ export const addProductReview = async (
     } = purchaseInfo;
     
     // Déterminer le statut de l'avis en fonction du taux de correspondance
-    // Si le taux de correspondance est >= 75%, l'avis est approuvé automatiquement
-    // Sinon, il est en attente de modération
     const reviewStatus = matchScore >= 0.70 ? 'approved_auto' : 'pending';
     
     // Récupérer les ratings spécifiques par critère
-    const tasteRating = ratings['1'] || 0; // Supposant que l'ID 1 est pour le goût
-    const quantityRating = ratings['2'] || 0; // Supposant que l'ID 2 est pour la quantité
-    const priceRating = ratings['3'] || 0; // Supposant que l'ID 3 est pour le prix
+    const tasteRating = ratings['1'] || 0; 
+    const quantityRating = ratings['2'] || 0;
+    const priceRating = ratings['3'] || 0;
     
     // Calculer la note moyenne avec 2 décimales
     const criteriaWeights = {
@@ -265,16 +263,14 @@ export const addProductReview = async (
           product_code: productCode,
           comment: comment,
           receipt_id: receiptId,
-          receipt_item_id: selectedItemId, // Ajout de la liaison avec l'article sélectionné
-          is_verified: !!receiptId, // Considéré comme vérifié si un ticket est fourni
-          status: reviewStatus, // Statut déterminé par le taux de correspondance
-          match_score: matchScore, // Enregistrer le score de correspondance
-          // Nouveaux champs pour les notes spécifiques
+          receipt_item_id: selectedItemId,
+          is_verified: !!receiptId,
+          status: reviewStatus,
+          match_score: matchScore,
           average_rating: averageRating,
           taste_rating: tasteRating,
           quantity_rating: quantityRating,
           price_rating: priceRating,
-          // Informations d'achat
           authorize_receipt_sharing: authorizeSharing,
           purchase_price: price,
           purchase_date: date,
@@ -300,52 +296,57 @@ export const addProductReview = async (
       
     if (ratingsError) throw ratingsError;
 
-    // Si un article est sélectionné, utilisez la fonction linkReceiptItemToReview pour le marquer
+    // Si un article est sélectionné, mettre à jour uniquement cet article avec le code produit
     if (selectedItemId && receiptId) {
       try {
         console.log(`Liaison de l'article ${selectedItemId} à l'avis ${newReview.id}`);
-        const linkResult = await linkReceiptItemToReview(newReview.id, selectedItemId);
         
-        if (!linkResult.success) {
-          console.warn("Avertissement: La liaison article-avis a échoué:", linkResult.error);
-          // Ne pas faire échouer l'ensemble du processus pour cette raison
+        // Mettre à jour uniquement l'article sélectionné
+        const { error: updateError } = await supabase
+          .from('receipt_items')
+          .update({ 
+            product_code: productCode,
+            is_selected: true
+          })
+          .eq('id', selectedItemId);
+        
+        if (updateError) {
+          console.warn("Avertissement: La mise à jour de l'article sélectionné a échoué:", updateError);
         }
       } catch (linkError) {
         console.error("Erreur lors de la liaison article-avis:", linkError);
-        // Ne pas faire échouer l'ensemble du processus pour cette raison
       }
     }
-    // Mettre à jour les articles du ticket pour les lier à l'avis
+    
+    // Mettre à jour les articles du ticket SANS modifier leur code produit
     if (receiptId && receiptItems && receiptItems.length > 0) {
-      console.log("Articles du ticket à associer:", receiptItems);
+      console.log("Articles du ticket à traiter:", receiptItems);
       
-      // Pour chaque article, vérifier s'il existe déjà dans receipt_items
-      // Si non, l'insérer; si oui, le mettre à jour
       for (const item of receiptItems) {
+        // Ne pas traiter l'article déjà sélectionné (éviter doublons)
+        if (item.id === selectedItemId) continue;
+        
         if (item.id && (item.id.startsWith('ai-item-') || item.id.startsWith('temp-'))) {
-          // C'est un ID temporaire, il faut insérer un nouvel article
+          // C'est un ID temporaire, insérer mais SANS le code produit
           const newItem = {
             receipt_id: receiptId,
             designation: item.designation,
-            product_code: productCode, // Lier au produit de l'avis
+            // Ne pas définir product_code ici
             quantite: item.quantite,
             prix_unitaire: item.prix_unitaire,
             prix_total: item.prix_total,
-            // Si l'article est sélectionné, marquer dans la base de données
-            is_selected: item.id === purchaseInfo.selectedItemId
+            is_selected: false
           };
           
           await supabase.from('receipt_items').insert([newItem]);
-        } else {
-          // C'est un ID existant, mettre à jour l'article
+        } else if (item.id) {
+          // Ne mettre à jour que la désignation et prix, PAS le code produit
           const updateItem = {
             designation: item.designation,
-            product_code: productCode, // Lier au produit de l'avis
+            // Ne pas définir product_code ici
             quantite: item.quantite,
             prix_unitaire: item.prix_unitaire,
-            prix_total: item.prix_total,
-            // Si l'article est sélectionné, marquer dans la base de données
-            is_selected: item.id === purchaseInfo.selectedItemId
+            prix_total: item.prix_total
           };
           
           await supabase.from('receipt_items').update(updateItem).eq('id', item.id);
@@ -361,7 +362,7 @@ export const addProductReview = async (
     return { 
       success: true, 
       review: newReview,
-      status: reviewStatus // Renvoyer le statut pour informer l'utilisateur
+      status: reviewStatus
     };
   } catch (error) {
     console.error("Erreur lors de l'ajout de l'avis:", error.message);
