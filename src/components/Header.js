@@ -18,7 +18,8 @@ import {
   Search,
   ShoppingBag,
   Info,
-  Phone
+  Phone,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import fydoLogo from '../assets/images/Fydo-logo.png';
@@ -290,7 +291,7 @@ const Header = () => {
                       <DropdownLink to="/mes-favoris" icon={<Heart size={16} />}>
                         Mes favoris
                       </DropdownLink>
-                      <DropdownLink to="/mes-tickets" icon={<MessageSquare size={16} />}>
+                      <DropdownLink to="/mes-tickets" icon={<Receipt size={16} />}>
                         Mes tickets
                       </DropdownLink>
                       
@@ -431,7 +432,7 @@ const Header = () => {
                           Mes favoris
                         </MobileNavLink>
 
-                        <MobileNavLink to="/mes-tickets" icon={<MessageSquare size={18} />}>
+                        <MobileNavLink to="/mes-tickets" icon={<Receipt size={18} />}>
                           Mes tickets
                         </MobileNavLink>
                         
