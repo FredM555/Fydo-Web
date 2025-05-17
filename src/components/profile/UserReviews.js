@@ -153,6 +153,8 @@ const UserReviews = () => {
     switch (status) {
       case 'approved':
         return 'bg-green-100 text-green-800';
+      case 'approved_auto':
+        return 'bg-green-100 text-green-800';        
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'rejected':
@@ -167,6 +169,8 @@ const UserReviews = () => {
     switch (status) {
       case 'approved':
         return 'Approuvé';
+      case 'approved_auto':
+        return 'Approuvé';
       case 'pending':
         return 'En attente';
       case 'rejected':
@@ -180,6 +184,8 @@ const UserReviews = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'approved':
+        return <Check size={14} className="mr-1" />;
+      case 'approved_auto':
         return <Check size={14} className="mr-1" />;
       case 'pending':
         return <Loader size={14} className="mr-1" />;

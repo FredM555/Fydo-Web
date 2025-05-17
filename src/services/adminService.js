@@ -195,7 +195,7 @@ export const getReviewStats = async () => {
     const { count: approvedCount, error: approvedError } = await supabase
       .from('product_reviews')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'approved');
+      .in('status', ['approved', 'approved_auto']);
       
     if (approvedError) throw approvedError;
     counts.approved = approvedCount || 0;

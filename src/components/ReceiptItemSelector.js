@@ -1,8 +1,9 @@
 // src/components/ReceiptItemSelector.js
 import React, { useState, useEffect } from 'react';
-import { Edit, Check, X, Trash, ShoppingCart, Plus } from 'lucide-react';
+import { Edit, Check, X, Trash, ShoppingCart, Plus, Star } from 'lucide-react';
 import { calculateMatchScore } from '../utils/textSimilarityUtils';
 import { updateReceiptItem, deleteReceiptItem } from '../services/receiptAnalysisService';
+import { supabase } from '../supabaseClient';
 
 /**
  * Composant permettant d'afficher et de sélectionner les articles du ticket de caisse
@@ -22,6 +23,8 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
   const [receiptItems, setReceiptItems] = useState([]);
   // Nouvel état pour désactiver temporairement la sélection
   const [selectionDisabled, setSelectionDisabled] = useState(false);
+  // Nouvel état pour suivre les articles déjà liés à des avis
+  const [linkedItems, setLinkedItems] = useState({});
 
   // Mettre à jour les articles quand ils changent via les props
   useEffect(() => {
@@ -40,7 +43,38 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
     } else {
       setReceiptItems(items);
     }
+
+    // Vérifier si des articles sont déjà liés à des avis
+    if (items.length > 0 && items[0].receipt_id) {
+      fetchLinkedItems(items[0].receipt_id);
+    }
   }, [items, productName]);
+
+  // Fonction pour récupérer les articles déjà liés à des avis
+  const fetchLinkedItems = async (receiptId) => {
+    try {
+      // Récupérer les avis qui référencent ce ticket
+      const { data: reviews, error } = await supabase
+        .from('product_reviews')
+        .select('receipt_item_id')
+        .eq('receipt_id', receiptId);
+      
+      if (error) throw error;
+      
+      // Créer un objet indexé par ID d'article
+      const linkedItemsMap = {};
+      reviews.forEach(review => {
+        if (review.receipt_item_id) {
+          linkedItemsMap[review.receipt_item_id] = true;
+        }
+      });
+      
+      setLinkedItems(linkedItemsMap);
+      console.log("🔗 Articles liés récupérés:", linkedItemsMap);
+    } catch (err) {
+      console.error("❌ Erreur lors de la récupération des articles liés:", err);
+    }
+  };
 
   // Sélection automatique du meilleur article
   useEffect(() => {
@@ -48,7 +82,7 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
     // 1. Il y a des articles
     // 2. Un nom de produit est fourni (pour calculer les scores)
     // 3. Aucun article n'est déjà sélectionné
-    // 4. Aucune édition n'est en cours (nouvel état)
+    // 4. Aucune édition n'est en cours
     if (receiptItems.length > 0 && productName && !selectedItem && !editingItemId) {
       console.log("🔍 Recherche de l'article avec la meilleure correspondance...");
       
@@ -261,19 +295,33 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
     }
   };
 
-  // Sélectionner un article
+  // Sélectionner un article (seulement s'il n'est pas déjà lié)
   const handleSelectItem = (item) => {
-    // Ne sélectionner que si la sélection n'est pas désactivée et qu'aucune édition n'est en cours
-    if (!selectionDisabled && editingItemId === null && onSelect) {
+    // Ne sélectionner que si la sélection n'est pas désactivée, 
+    // qu'aucune édition n'est en cours, et que l'article n'est pas déjà lié
+    if (!selectionDisabled && editingItemId === null && onSelect && !linkedItems[item.id]) {
       onSelect(item);
     }
   };
 
   // Obtenir la classe CSS pour le badge du taux de correspondance
   const getMatchScoreClass = (score) => {
-    if (score >= 0.8) return "bg-green-100 text-green-800";
-    if (score >= 0.5) return "bg-yellow-100 text-yellow-800";
-    return "bg-gray-100 text-gray-800";
+    if (score >= 0.7) return "bg-green-100 text-green-800";
+    if (score >= 0.5) return "bg-orange-100 text-orange-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  // Obtenir le style de la ligne en fonction de l'état de sélection et de liaison
+  const getRowStyle = (item) => {
+    if (linkedItems[item.id]) {
+      return "bg-gray-100 opacity-70"; // Article déjà lié - non sélectionnable
+    }
+    
+    if (selectedItem && selectedItem.id === item.id) {
+      return "bg-green-50 hover:bg-green-100 cursor-pointer"; // Article sélectionné
+    }
+    
+    return "hover:bg-gray-50 cursor-pointer"; // Article normal
   };
 
   return (
@@ -304,28 +352,32 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
           <p className="mt-2 text-sm text-gray-500">Aucun article détecté sur ce ticket</p>
         </div>
       ) : (
-        <div className="overflow-x-auto overflow-y-auto max-h-none" style={{ minHeight: '600px' }}>
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="overflow-y-auto max-h-[600px] border border-gray-200 rounded-md" style={{ scrollbarWidth: 'none' }}>
+          <style jsx="true">{`
+            /* Masquer la barre de défilement pour tous les navigateurs */
+            div::-webkit-scrollbar {
+              display: none;
+            }
+            div {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
+          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-7/12">
                   Désignation
                 </th>
-                <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Qté
-                </th>
-                <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prix unitaire
-                </th>
-                <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prix total
+                <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">
+                  Prix
                 </th>
                 {productName && (
-                  <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Correspondance
+                  <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">
+                    Match
                   </th>
                 )}
-                <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">
                   Actions
                 </th>
               </tr>
@@ -334,7 +386,7 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
               {receiptItems.map((item, index) => (
                 <tr 
                   key={item.id || index} 
-                  className={`${selectedItem && selectedItem.id === item.id ? 'bg-green-50' : 'hover:bg-gray-50'}`}
+                  className={`${getRowStyle(item)} transition-colors`}
                   onClick={() => handleSelectItem(item)}
                 >
                   {editingItemId === item.id ? (
@@ -350,37 +402,46 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
                         />
                       </td>
                       <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          value={editValues.quantite || ''}
-                          onChange={(e) => handleEditChange('quantite', e.target.value)}
-                          className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
-                          step="0.01"
-                          min="0"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          value={editValues.prix_unitaire || ''}
-                          onChange={(e) => handleEditChange('prix_unitaire', e.target.value)}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
-                          step="0.01"
-                          min="0"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          value={editValues.prix_total || ''}
-                          onChange={(e) => handleEditChange('prix_total', e.target.value)}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
-                          step="0.01"
-                          min="0"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex items-center">
+                            <span className="text-xs text-gray-500 mr-1">Qté:</span>
+                            <input
+                              type="number"
+                              value={editValues.quantite || ''}
+                              onChange={(e) => handleEditChange('quantite', e.target.value)}
+                              className="w-12 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
+                              step="0.01"
+                              min="0"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-xs text-gray-500 mr-1">Prix:</span>
+                            <input
+                              type="number"
+                              value={editValues.prix_unitaire || ''}
+                              onChange={(e) => handleEditChange('prix_unitaire', e.target.value)}
+                              className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
+                              step="0.01"
+                              min="0"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <span className="ml-1">€</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="text-xs text-gray-500 mr-1">Total:</span>
+                            <input
+                              type="number"
+                              value={editValues.prix_total || ''}
+                              onChange={(e) => handleEditChange('prix_total', e.target.value)}
+                              className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
+                              step="0.01"
+                              min="0"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <span className="ml-1">€</span>
+                          </div>
+                        </div>
                       </td>
                       {productName && <td className="px-3 py-2"></td>}
                       <td className="px-3 py-2 text-center">
@@ -411,30 +472,24 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
                   ) : (
                     // Mode affichage
                    <>
-                    <td className="px-3 py-2 text-sm text-gray-800">
-                      {item.designation || 'Sans nom'}
+                    <td className="px-3 py-2 text-sm text-gray-800 flex items-center">
+                      {linkedItems[item.id] && (
+                        <div className="mr-2 bg-blue-100 text-blue-800 rounded-full p-1" title="Article déjà associé à un avis">
+                          <Star size={12} className="fill-blue-800" />
+                        </div>
+                      )}
+                      <span className={linkedItems[item.id] ? "line-through text-gray-500" : ""}>
+                        {item.designation || 'Sans nom'}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-center text-gray-800">
-                      {item.quantite || '1'}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-right text-gray-800">
+                    <td className="px-3 py-2 text-sm text-center text-gray-800 font-medium">
                       {(item.prix_unitaire || 0).toFixed(2)} €
-                    </td>
-                    <td className="px-3 py-2 text-sm text-right text-gray-800 font-medium">
-                      {(item.prix_total || 0).toFixed(2)} €
                     </td>
                     {productName && (
                       <td className="px-3 py-2 text-sm text-center">
-                        {(() => {
-                          const score = item.matchScore || 0;
-                          const scoreClass = getMatchScoreClass(score);
-                          const percentage = Math.round(score * 100);
-                          return (
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${scoreClass}`}>
-                              {percentage}%
-                            </span>
-                          );
-                        })()}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getMatchScoreClass(item.matchScore || 0)}`}>
+                          {Math.round((item.matchScore || 0) * 100)}%
+                        </span>
                       </td>
                     )}
                     <td className="px-3 py-2 text-center">
@@ -446,8 +501,10 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
                             startEditing(item);
                           }}
                           className="text-blue-600 hover:text-blue-900 p-1"
+                          disabled={linkedItems[item.id]}
+                          title={linkedItems[item.id] ? "Cet article est déjà associé à un avis" : "Modifier"}
                         >
-                          <Edit size={16} />
+                          <Edit size={16} className={linkedItems[item.id] ? "opacity-50" : ""} />
                         </button>
                         <button
                           type="button"
@@ -456,8 +513,10 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
                             deleteItem(item.id);
                           }}
                           className="text-red-600 hover:text-red-900 p-1"
+                          disabled={linkedItems[item.id]}
+                          title={linkedItems[item.id] ? "Cet article est déjà associé à un avis" : "Supprimer"}
                         >
-                          <Trash size={16} />
+                          <Trash size={16} className={linkedItems[item.id] ? "opacity-50" : ""} />
                         </button>
                       </div>
                     </td>
@@ -472,25 +531,6 @@ const ReceiptItemSelector = ({ items = [], onChange, selectedItem, onSelect, pro
       <div className="mt-2 text-right text-xs text-gray-500 italic">
         Cliquez sur un article pour le sélectionner, ou sur les icônes pour modifier ou supprimer
       </div>
-      {productName && (
-        <div className="mt-3 text-xs text-gray-600">
-          <p className="font-medium">Aide sur le taux de correspondance :</p>
-          <div className="flex items-center space-x-4 mt-1">
-            <span className="inline-flex items-center">
-              <span className="inline-block w-4 h-4 rounded-full bg-green-100 mr-1"></span>
-              <span>Forte (≥80%)</span>
-            </span>
-            <span className="inline-flex items-center">
-              <span className="inline-block w-4 h-4 rounded-full bg-yellow-100 mr-1"></span>
-              <span>Moyenne (50-79%)</span>
-            </span>
-            <span className="inline-flex items-center">
-              <span className="inline-block w-4 h-4 rounded-full bg-gray-100 mr-1"></span>
-              <span>Faible (≤49%)</span>
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

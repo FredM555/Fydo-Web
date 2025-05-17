@@ -64,7 +64,7 @@ export const getProductReviews = async (productCode, limit = 10, offset = 0) => 
         review_ratings (id, criteria_id, rating)
       `, { count: 'exact' })
       .eq('product_code', productCode)
-      .eq('status', 'approved')
+      .in('status', ['approved', 'approved_auto'])
       .order('creation_date', { ascending: false })
       .range(offset, offset + limit - 1);
       
@@ -231,7 +231,7 @@ export const addProductReview = async (
     // Déterminer le statut de l'avis en fonction du taux de correspondance
     // Si le taux de correspondance est >= 75%, l'avis est approuvé automatiquement
     // Sinon, il est en attente de modération
-    const reviewStatus = matchScore >= 0.75 ? 'approved' : 'pending';
+    const reviewStatus = matchScore >= 0.70 ? 'approved_auto' : 'pending';
     
     // Récupérer les ratings spécifiques par critère
     const tasteRating = ratings['1'] || 0; // Supposant que l'ID 1 est pour le goût
@@ -354,7 +354,7 @@ export const addProductReview = async (
     }
     
     // Mettre à jour les statistiques du produit seulement si l'avis est approuvé
-    if (reviewStatus === 'approved') {
+    if (reviewStatus === 'approved' || reviewStatus === 'approved_auto') {
       await updateProductStats(productCode);
     }
     
@@ -388,7 +388,7 @@ export const updateProductStats = async (productCode) => {
         is_verified
       `)
       .eq('product_code', productCode)
-      .eq('status', 'approved');
+      .in('status', ['approved', 'approved_auto']);
       
     if (error) throw error;
     
