@@ -1,6 +1,6 @@
 // src/components/ReceiptUploadEnhanced.js (modifié)
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, FileText, Camera, FileQuestion, AlertTriangle, Clock, ArrowRight , Info} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadReceipt, getRecentReceipts , deleteReceipt } from '../services/storageService';
 import { analyzeAndProcessReceipt, getReceiptItems } from '../services/receiptAnalysisService';
@@ -85,68 +85,102 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
   };
   
   // Gestion de l'envoi du fichier vers Firebase et Supabase
-  const handleUpload = async () => {
-    if (!file) {
-      setError("Veuillez sélectionner un ticket de caisse");
-      return;
+const handleUpload = async () => {
+  if (!file) {
+    setError("Veuillez sélectionner un ticket de caisse");
+    return;
+  }
+  
+  if (!currentUser || !userDetails) {
+    setError("Vous devez être connecté pour télécharger des tickets de caisse.");
+    return;
+  }
+  
+  console.log("🔄 Début du processus d'upload et d'analyse du ticket");
+  setUploading(true);
+  setError(null);
+  setAnalysisError(null);
+  setProgress(0);
+  
+  // Simulation de progression pendant l'upload
+  const progressInterval = setInterval(() => {
+    setProgress(prev => Math.min(prev + 5, 80));
+  }, 200);
+  
+  try {
+    // 1. Télécharger l'image vers Firebase Storage
+    console.log("⬆️ Téléchargement de l'image vers Firebase...");
+    const uploadResult = await uploadReceipt(
+      file, 
+      userDetails.id, 
+      currentUser.uid, 
+      productCode
+    );
+    
+    clearInterval(progressInterval);
+    console.log("✅ Résultat du téléchargement:", uploadResult);
+    
+    if (!uploadResult.success) {
+      console.error("❌ Erreur pendant le téléchargement:", uploadResult.error);
+      throw new Error(uploadResult.error || "Le téléchargement a échoué. Veuillez réessayer.");
     }
     
-    if (!currentUser || !userDetails) {
-      setError("Vous devez être connecté pour télécharger des tickets de caisse.");
-      return;
-    }
+    setProgress(85);
+    setAiProcessing(true);
     
-    console.log("🔄 Début du processus d'upload et d'analyse du ticket");
-    setUploading(true);
-    setError(null);
-    setAnalysisError(null);
-    setProgress(0);
+    // 2. Analyser le ticket avec l'API et traiter les données
+    console.log("🧠 Début de l'analyse du ticket avec URL:", uploadResult.url);
+    console.log("👤 User ID:", userDetails.id);
+    console.log("🧾 Receipt ID:", uploadResult.receipt.id);
     
-    // Simulation de progression pendant l'upload
-    const progressInterval = setInterval(() => {
-      setProgress(prev => Math.min(prev + 5, 80));
-    }, 200);
+    const analysisResult = await analyzeAndProcessReceipt(
+      uploadResult.url,
+      userDetails.id,
+      uploadResult.receipt.id
+    );
     
-    try {
-      // 1. Télécharger l'image vers Firebase Storage
-      console.log("⬆️ Téléchargement de l'image vers Firebase...");
-      const uploadResult = await uploadReceipt(
-        file, 
-        userDetails.id, 
-        currentUser.uid, 
-        productCode
-      );
+    console.log("📊 Résultat de l'analyse:", analysisResult);
+    
+    // NOUVELLE PARTIE: Vérifier si c'est un duplicata
+    if (analysisResult.success && analysisResult.isDuplicate) {
+      console.log("🔄 Ticket similaire détecté:", analysisResult.existingReceiptId);
       
-      clearInterval(progressInterval);
-      console.log("✅ Résultat du téléchargement:", uploadResult);
+      // Préparer l'interface pour afficher que c'est un ticket existant
+      setProgress(100);
+      setUploadSuccess(true);
       
-      if (!uploadResult.success) {
-        console.error("❌ Erreur pendant le téléchargement:", uploadResult.error);
-        throw new Error(uploadResult.error || "Le téléchargement a échoué. Veuillez réessayer.");
+      // Afficher un message de duplicata à l'utilisateur
+      setAnalysisError({
+        type: 'duplicate',
+        message: "Ticket similaire déjà traité",
+        details: "Ce ticket semble être un duplicata d'un ticket que vous avez déjà importé. Le ticket existant sera utilisé."
+      });
+      
+      // Rafraîchir la liste des tickets récents
+      fetchRecentReceipts();
+      
+      // Appeler le callback avec les données du ticket existant
+      if (onUploadComplete) {
+        onUploadComplete(
+          analysisResult.receipt,
+          analysisResult.receipt.firebase_url,
+          analysisResult.data,
+          analysisResult.createdItems || []
+        );
       }
       
-      setProgress(85);
-      setAiProcessing(true);
+      // Terminer le traitement ici
+      setUploading(false);
+      setAiProcessing(false);
+      return;
+    }
+    
+    // 3. Vérifier si l'analyse a réussi (cas d'échec standard)
+    if (!analysisResult.success) {
+      console.warn("⚠️ Analyse du ticket échouée:", analysisResult.error);
       
-      // 2. Analyser le ticket avec l'API et traiter les données
-      console.log("🧠 Début de l'analyse du ticket avec URL:", uploadResult.url);
-      console.log("👤 User ID:", userDetails.id);
-      console.log("🧾 Receipt ID:", uploadResult.receipt.id);
-      
-      const analysisResult = await analyzeAndProcessReceipt(
-        uploadResult.url,
-        userDetails.id,
-        uploadResult.receipt.id
-      );
-      
-      console.log("📊 Résultat de l'analyse:", analysisResult);
-      
-      // 3. Vérifier si l'analyse a réussi
-      if (!analysisResult.success) {
-        console.warn("⚠️ Analyse du ticket échouée:", analysisResult.error);
-        
-        // Si l'erreur est due au fait que l'image n'est pas un ticket
-        if (analysisResult.data && analysisResult.data.is_receipt === false) {
+      // Si l'erreur est due au fait que l'image n'est pas un ticket
+      if (analysisResult.data && analysisResult.data.is_receipt === false) {
         // MODIFICATION: Supprimer le document qui n'est pas un ticket
         console.log("🗑️ Suppression du document non-ticket:", uploadResult.receipt.id);
         
@@ -163,56 +197,56 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
         }
         
         // Afficher le message d'erreur à l'utilisateur
-  
-          setAnalysisError({
-            type: 'not_receipt',
-            message: "Ce document n'est pas un ticket de caisse",
-            details: analysisResult.data.detection_reason || "Veuillez télécharger une image claire d'un ticket de caisse."
-          });
-        } else {
-          // Autres erreurs d'analyse
-          setAnalysisError({
-            type: 'analysis_failed',
-            message: "L'analyse du ticket a échoué",
-            details: analysisResult.error || "Veuillez vérifier que l'image est claire et réessayer."
-          });
-        }
-        
-        setProgress(0);
-        setUploading(false);
-        setAiProcessing(false);
-        return;
+        setAnalysisError({
+          type: 'not_receipt',
+          message: "Ce document n'est pas un ticket de caisse",
+          details: analysisResult.data.detection_reason || "Veuillez télécharger une image claire d'un ticket de caisse."
+        });
+      } else {
+        // Autres erreurs d'analyse
+        setAnalysisError({
+          type: 'analysis_failed',
+          message: "L'analyse du ticket a échoué",
+          details: analysisResult.error || "Veuillez vérifier que l'image est claire et réessayer."
+        });
       }
       
-      setProgress(100);
-      setUploadSuccess(true);
-      
-      // Rafraîchir la liste des tickets récents
-      fetchRecentReceipts();
-      
-      // 4. Appeler le callback avec toutes les données
-      console.log("🏁 Processus terminé, transmission des données au parent");
-      if (onUploadComplete) {
-        const analysisData = analysisResult.data;
-        const receiptItems = analysisResult.createdItems;
-        
-        onUploadComplete(
-          uploadResult.receipt,
-          uploadResult.url,
-          analysisData,
-          receiptItems
-        );
-      }
-    } catch (err) {
-      clearInterval(progressInterval);
-      console.error("❌ Erreur critique dans le processus:", err);
-      setError(err.message || "Le téléchargement a échoué. Veuillez réessayer.");
       setProgress(0);
-    } finally {
       setUploading(false);
       setAiProcessing(false);
+      return;
     }
-  };
+    
+    // Cas de succès standard (ni duplicata, ni erreur)
+    setProgress(100);
+    setUploadSuccess(true);
+    
+    // Rafraîchir la liste des tickets récents
+    fetchRecentReceipts();
+    
+    // 4. Appeler le callback avec toutes les données
+    console.log("🏁 Processus terminé, transmission des données au parent");
+    if (onUploadComplete) {
+      const analysisData = analysisResult.data;
+      const receiptItems = analysisResult.createdItems;
+      
+      onUploadComplete(
+        uploadResult.receipt,
+        uploadResult.url,
+        analysisData,
+        receiptItems
+      );
+    }
+  } catch (err) {
+    clearInterval(progressInterval);
+    console.error("❌ Erreur critique dans le processus:", err);
+    setError(err.message || "Le téléchargement a échoué. Veuillez réessayer.");
+    setProgress(0);
+  } finally {
+    setUploading(false);
+    setAiProcessing(false);
+  }
+};
   
   // Fonction pour utiliser un ticket existant
   const handleUseExistingReceipt = async (receipt) => {
@@ -391,7 +425,22 @@ const ReceiptUploadEnhanced = ({ onUploadComplete, productCode = null, productNa
         
         {/* Affichage des tickets récents */}
         {!file && !uploadSuccess && renderRecentReceipts()}
-        
+
+              {/* Message informatif pour les tickets dupliqués */}
+      {analysisError && analysisError.type === 'duplicate' && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <Info className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-blue-700">Ticket déjà existant</h3>
+              <p className="text-sm text-blue-600 mt-1">
+                Ce ticket semble identique à un ticket que vous avez déjà importé.
+                Pour éviter les doublons, le ticket existant sera utilisé automatiquement.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
         {/* Affichage de l'erreur d'analyse */}
         {shouldShowAnalysisError && (
           <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">

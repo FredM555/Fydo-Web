@@ -125,7 +125,159 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
     // 2. Traiter et enregistrer les données du ticket dans la base de données
     const { receipt, articles } = analysisResult;
     const { enseigne } = receipt;
+
+    // NOUVELLE PARTIE: Vérification de duplicata
+    // Vérifier si un ticket similaire existe déjà pour cet utilisateur
+// Vérifier si un ticket similaire existe déjà pour cet utilisateur
+if (receipt.total || receipt.date || (enseigne && enseigne.nom)) {
+  console.log("🔍 Vérification si un ticket similaire existe déjà...");
+  
+  try {
+    // Construire une requête qui joint la table receipts avec la table enseignes
+    let query = supabase
+      .from('receipts')
+      .select('*, enseignes(nom, id)')
+      .eq('user_id', userId)
+      .neq('id', receiptId); // Exclure le ticket actuel
     
+    // Ajouter les critères de recherche disponibles
+    if (receipt.total) {
+      // S'assurer que le total est un nombre valide
+      let totalAmount = 0;
+      
+      try {
+        // Gérer différents formats possibles (points ou virgules)
+        const cleanTotal = String(receipt.total).replace(',', '.').replace(/\s/g, '');
+        totalAmount = parseFloat(cleanTotal);
+        
+        if (!isNaN(totalAmount)) {
+          const minAmount = totalAmount - 0.5;
+          const maxAmount = totalAmount + 0.5;
+          
+          console.log(`💰 Recherche par montant: ${minAmount} - ${maxAmount}`);
+          
+          // S'assurer que les montants sont des nombres valides pour la requête
+          query = query.gte('total_ttc', minAmount).lte('total_ttc', maxAmount);
+        } else {
+          console.warn("⚠️ Montant du ticket invalide pour la recherche:", receipt.total);
+        }
+      } catch (numberError) {
+        console.warn("⚠️ Erreur lors du traitement du montant:", numberError);
+      }
+    }
+    
+    if (receipt.date) {
+      try {
+        // S'assurer que la date est valide
+        const dateObj = new Date(receipt.date);
+        
+        if (!isNaN(dateObj.getTime())) {
+          // Ajouter une tolérance d'un jour
+          const prevDay = new Date(dateObj);
+          prevDay.setDate(dateObj.getDate() - 1);
+          const nextDay = new Date(dateObj);
+          nextDay.setDate(dateObj.getDate() + 1);
+          
+          const prevDayStr = prevDay.toISOString().split('T')[0];
+          const nextDayStr = nextDay.toISOString().split('T')[0];
+          
+          console.log(`📅 Recherche par date: ${prevDayStr} - ${nextDayStr}`);
+          
+          query = query.gte('receipt_date', prevDayStr).lte('receipt_date', nextDayStr);
+        } else {
+          console.warn("⚠️ Date du ticket invalide pour la recherche:", receipt.date);
+        }
+      } catch (dateError) {
+        console.warn("⚠️ Erreur lors du traitement de la date:", dateError);
+      }
+    }
+    
+    // Recherche par nom d'enseigne au lieu de l'ID
+    if (enseigne && enseigne.nom) {
+      try {
+        // Nettoyer le nom de l'enseigne pour la recherche
+        const cleanEnseigneName = enseigne.nom.trim();
+        
+        if (cleanEnseigneName) {
+          // Exécuter d'abord une requête pour trouver les ID d'enseignes avec ce nom
+          const { data: enseignesData, error: enseignesError } = await supabase
+            .from('enseignes')
+            .select('id')
+            .ilike('nom', `%${cleanEnseigneName}%`);
+          
+          if (!enseignesError && enseignesData && enseignesData.length > 0) {
+            // Extraire les IDs des enseignes correspondantes
+            const enseigneIds = enseignesData.map(e => e.id);
+            
+            if (enseigneIds.length > 0) {
+              // Rechercher les tickets avec l'un de ces IDs d'enseigne
+              query = query.in('enseigne_id', enseigneIds);
+              console.log(`🏬 Recherche par noms d'enseignes similaires: ${cleanEnseigneName}, IDs:`, enseigneIds);
+            }
+          }
+        }
+      } catch (enseigneError) {
+        console.warn("⚠️ Erreur lors de la recherche par enseigne:", enseigneError);
+      }
+    }
+    
+    // Exécuter la requête de recherche de tickets similaires
+    const { data: existingReceipts, error: queryError } = await query;
+    
+    if (queryError) {
+      console.error("❌ Erreur lors de la vérification des duplicatas:", queryError);
+    } else if (existingReceipts && existingReceipts.length > 0) {
+      // Ticket similaire trouvé!
+      const existingReceipt = existingReceipts[0];
+      console.log("🔄 Ticket similaire trouvé:", existingReceipt.id);
+      
+      // Télécharger les articles du ticket existant
+      let existingItems = [];
+      try {
+        const { success, items } = await getReceiptItems(existingReceipt.id);
+        if (success && items) {
+          existingItems = items;
+          console.log(`✅ ${items.length} articles chargés depuis le ticket existant`);
+        }
+      } catch (itemsError) {
+        console.warn("⚠️ Impossible de charger les articles du ticket existant:", itemsError);
+      }
+      
+      // Supprimer le ticket actuel qui est un duplicata
+      try {
+        await supabase
+          .from('receipts')
+          .delete()
+          .eq('id', receiptId);
+        
+        console.log("🗑️ Ticket dupliqué supprimé avec succès");
+        
+        // Retourner un résultat spécial indiquant un duplicata
+        return {
+          success: true,
+          isDuplicate: true,
+          existingReceiptId: existingReceipt.id,
+          receipt: existingReceipt,
+          createdItems: existingItems,
+          data: {
+            is_receipt: true,
+            date: existingReceipt.receipt_date,
+            store: existingReceipt.enseignes?.nom || enseigne.nom || "Enseigne inconnue",
+            price: existingReceipt.total_ttc,
+            items: existingItems.length
+          }
+        };
+      } catch (deleteError) {
+        console.error("❌ Erreur lors de la suppression du ticket dupliqué:", deleteError);
+      }
+    }
+  } catch (duplError) {
+    // Gérer l'erreur et continuer l'exécution normale
+    console.error("❌ Erreur lors de la vérification des duplicatas:", duplError);
+  }
+}
+    
+    // Continuer le traitement normal si aucun duplicata n'est trouvé
     console.log("🏬 Étape 2: Traitement de l'enseigne...", enseigne);
     
     // 2.1 Rechercher ou créer l'enseigne
@@ -189,7 +341,7 @@ export const analyzeAndProcessReceipt = async (imageUrl, userId, receiptId) => {
       receiptId: receiptId // Retourner l'ID même en cas d'erreur pour permettre d'autres opérations
     };
   }
-};
+}
 
 /**
  * Appelle l'API d'analyse de ticket
