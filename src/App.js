@@ -46,7 +46,8 @@ import TermsOfService from './pages/TermsOfService';
 
 import Contact from './components/Contact';
 import FeaturesPage from './pages/FeaturesPage'
-
+// orientation mobile lock en portrait
+import OrientationLock from './components/OrientationLock';
 // Composant PrivateRoute amélioré pour protéger les routes qui nécessitent une authentification
 const PrivateRoute = ({ element }) => {
   const { currentUser } = useAuth();
@@ -66,6 +67,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-green-50 flex flex-col">
+          <OrientationLock />
           <Helmet>
             <title>Fydo - Avis Produits</title>
             <link rel="icon" href="/images/Fydo-icone.png" type="image/png" />

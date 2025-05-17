@@ -1,0 +1,92 @@
+/* Ajouter à src/index.css ou créer un nouveau fichier src/styles/orientation.css */
+
+/* Classes CSS pour gérer l'orientation sur mobile */
+
+/* Base */
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Spécifique au mobile */
+@media screen and (max-width: 767px) {
+  /* Assurer que le layout fonctionne en mode portrait forcé */
+  .portrait-only {
+    max-width: 100vw;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  /* Styles spécifiques pour la navigation du bas */
+  .mobile-nav-menu {
+    width: 100vw;
+    max-width: 100vw;
+  }
+  
+  /* Lorsque l'orientation change vers paysage */
+  @media (orientation: landscape) {
+    /* Appliqué au conteneur principal pour supporter la transformation */
+    .portrait-transform-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+    
+    /* Animation douce lors du changement d'orientation */
+    .orientation-message {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px;
+      background-color: rgba(251, 191, 36, 0.9);
+      color: #7c2d12;
+      text-align: center;
+      font-size: 14px;
+      z-index: 9999;
+      transition: transform 0.3s ease-in-out;
+      transform: translateY(-100%);
+    }
+    
+    .orientation-message.visible {
+      transform: translateY(0);
+    }
+    
+    /* Adapter la taille de police pour la lisibilité en mode paysage forcé */
+    body {
+      font-size: 16px;
+    }
+  }
+  
+  /* Assurer que le contenu reste dans la zone visible même avec des barres de navigation */
+  @supports (padding: max(0px)) {
+    .mobile-nav-menu {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+    
+    body {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 4rem); /* Pour laisser de l'espace au dessus de la barre de navigation mobile */
+    }
+  }
+}
+
+/* Ajouter des styles pour que le menu de navigation reste accessible même en orientation forcée */
+.has-bottom-nav {
+  padding-bottom: 4rem; /* Hauteur de la barre de navigation */
+}
+
+/* Animation de rotation pour l'indicateur d'orientation */
+.rotate-device-icon {
+  display: inline-block;
+  animation: rotateDevice 2s infinite ease-in-out;
+}
+
+@keyframes rotateDevice {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
