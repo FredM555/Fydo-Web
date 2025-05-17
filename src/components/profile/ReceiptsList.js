@@ -7,7 +7,7 @@ import { Receipt, Calendar, AlertCircle, Trash2, ExternalLink, Loader, Image, Sh
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../utils/formatters';
 import { supabase } from '../../supabaseClient';
-
+ 
 /**
  * Composant pour afficher et gérer les tickets de caisse de l'utilisateur
  * @returns {JSX.Element}

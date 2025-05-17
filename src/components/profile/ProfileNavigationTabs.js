@@ -53,6 +53,6 @@ const ProfileNavigationTabs = () => {
       </div>
     </div>
   );
-};
+}; 
 
 export default ProfileNavigationTabs;

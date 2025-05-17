@@ -201,7 +201,7 @@ export const addProductReview = async (
     if (existingReview) {
       throw new Error("Vous avez déjà laissé un avis pour ce produit");
     }
-    
+      
     // Vérifier si le ticket existe et appartient à l'utilisateur
     if (receiptId) {
       const { data: receipt, error: receiptError } = await supabase

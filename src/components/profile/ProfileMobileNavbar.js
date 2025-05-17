@@ -168,7 +168,7 @@ const ProfileMobileNavbar = ({ currentUser, title, isMenuOpen, toggleMenu, onLog
               <span>Mes tickets</span>
             </Link>
             
-            <Link 
+              <Link 
               to="/mes-avis" 
               className={`flex items-center px-4 py-3 ${isActivePath('/mes-avis') ? 'bg-green-50 text-green-700' : 'hover:bg-gray-50 text-gray-700'}`}
               onClick={toggleMenu}

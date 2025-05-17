@@ -172,7 +172,7 @@ const ProfileSidebar = ({ currentUser, onLogout, loading }) => {
             <span>Mes favoris</span>
           </Link>
            <Link 
-  to="/mes-tickets" 
+  to="/mes-tickets"  
   className={`flex items-center px-3 py-2 rounded-md w-full transition h-10 ${isActivePath('/mes-tickets') ? 'bg-green-50 text-green-700' : 'hover:bg-gray-100 text-gray-700'}`}
 >
   <Receipt size={18} className="mr-3 shrink-0" />
